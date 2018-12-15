@@ -17,8 +17,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
     public class OracleMigrationsSqlGenerator : MigrationsSqlGenerator
     {
         public OracleMigrationsSqlGenerator(
-            [NotNull] MigrationsSqlGeneratorDependencies dependencies,
-            [NotNull] IMigrationsAnnotationProvider migrationsAnnotations)
+            [NotNull] MigrationsSqlGeneratorDependencies dependencies)
             : base(dependencies)
         {
         }
@@ -374,13 +373,7 @@ END;";
         protected override void Generate(
             DropIndexOperation operation,
             IModel model,
-            MigrationCommandListBuilder builder)
-            => Generate(operation, model, builder, terminate: true);
-
-        protected virtual void Generate(
-            [NotNull] DropIndexOperation operation,
-            [CanBeNull] IModel model,
-            [NotNull] MigrationCommandListBuilder builder,
+            MigrationCommandListBuilder builder,
             bool terminate)
         {
             Check.NotNull(operation, nameof(operation));

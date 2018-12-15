@@ -440,10 +440,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
 
             property.Metadata.AddAnnotations(
                 column.GetAnnotations().Where(
-#pragma warning disable CS0618 // Type or member is obsolete
-                    a => a.Name != ScaffoldingAnnotationNames.UnderlyingStoreType
-#pragma warning restore CS0618 // Type or member is obsolete
-                         && a.Name != ScaffoldingAnnotationNames.ConcurrencyToken));
+                    a => a.Name != ScaffoldingAnnotationNames.ConcurrencyToken));
 
             return property;
         }
@@ -468,7 +465,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 .Where(c => _unmappedColumns.Contains(c))
                 .Select(c => c.Name)
                 .ToList();
-            if (unmappedColumns.Any())
+            if (unmappedColumns.Count > 0)
             {
                 _reporter.WriteWarning(
                     DesignStrings.PrimaryKeyErrorPropertyNotFound(
@@ -535,7 +532,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 .Where(c => _unmappedColumns.Contains(c))
                 .Select(c => c.Name)
                 .ToList();
-            if (unmappedColumns.Any())
+            if (unmappedColumns.Count > 0)
             {
                 _reporter.WriteWarning(
                     DesignStrings.UnableToScaffoldIndexMissingProperty(
@@ -588,7 +585,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 .Where(c => _unmappedColumns.Contains(c))
                 .Select(c => c.Name)
                 .ToList();
-            if (unmappedColumns.Any())
+            if (unmappedColumns.Count > 0)
             {
                 _reporter.WriteWarning(
                     DesignStrings.UnableToScaffoldIndexMissingProperty(
@@ -674,7 +671,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 .Where(c => _unmappedColumns.Contains(c))
                 .Select(c => c.Name)
                 .ToList();
-            if (unmappedDependentColumns.Any())
+            if (unmappedDependentColumns.Count > 0)
             {
                 _reporter.WriteWarning(
                     DesignStrings.ForeignKeyScaffoldErrorPropertyNotFound(
@@ -703,7 +700,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 .Where(pc => principalEntityType.FindProperty(GetPropertyName(pc)) == null)
                 .Select(pc => pc.Name)
                 .ToList();
-            if (unmappedPrincipalColumns.Any())
+            if (unmappedPrincipalColumns.Count > 0)
             {
                 _reporter.WriteWarning(
                     DesignStrings.ForeignKeyScaffoldErrorPropertyNotFound(
@@ -723,14 +720,13 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             if (principalKey == null)
             {
                 var index = principalEntityType.FindIndex(principalProperties.AsReadOnly());
-                if (index != null
-                    && index.IsUnique)
+                if (index?.IsUnique == true)
                 {
                     // ensure all principal properties are non-nullable even if the columns
                     // are nullable on the database. EF's concept of a key requires this.
                     var nullablePrincipalProperties =
                         principalPropertiesMap.Where(tuple => tuple.property.IsNullable).ToList();
-                    if (nullablePrincipalProperties.Any())
+                    if (nullablePrincipalProperties.Count > 0)
                     {
                         _reporter.WriteWarning(
                             DesignStrings.ForeignKeyPrincipalEndContainsNullableColumns(
@@ -766,7 +762,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
             var dependentKey = dependentEntityType.FindKey(dependentProperties);
             var dependentIndex = dependentEntityType.FindIndex(dependentProperties);
             key.IsUnique = dependentKey != null
-                           || dependentIndex != null && dependentIndex.IsUnique;
+                           || dependentIndex?.IsUnique == true;
 
             if (!string.IsNullOrEmpty(foreignKey.Name)
                 && foreignKey.Name != ConstraintNamer.GetDefaultName(key))
@@ -862,28 +858,10 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 return null;
             }
 
-            var typeScaffoldingInfo = _scaffoldingTypeMapper.FindMapping(
-#pragma warning disable CS0618 // Type or member is obsolete
-                column.GetUnderlyingStoreType() ?? column.StoreType,
-#pragma warning restore CS0618 // Type or member is obsolete
+            return _scaffoldingTypeMapper.FindMapping(
+                column.StoreType,
                 column.IsKeyOrIndex(),
                 column.IsRowVersion());
-
-            if (typeScaffoldingInfo == null)
-            {
-                return null;
-            }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-            return column.GetUnderlyingStoreType() != null
-#pragma warning restore CS0618 // Type or member is obsolete
-                ? new TypeScaffoldingInfo(
-                    typeScaffoldingInfo.ClrType,
-                    inferred: false,
-                    scaffoldUnicode: typeScaffoldingInfo.ScaffoldUnicode,
-                    scaffoldMaxLength: typeScaffoldingInfo.ScaffoldMaxLength,
-                    scaffoldFixedLength: typeScaffoldingInfo.ScaffoldFixedLength)
-                : typeScaffoldingInfo;
         }
 
         private static void AssignOnDeleteAction(
@@ -911,8 +889,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
         // TODO use CSharpUniqueNamer
         private static string NavigationUniquifier([NotNull] string proposedIdentifier, [CanBeNull] ICollection<string> existingIdentifiers)
         {
-            if (existingIdentifiers == null
-                || !existingIdentifiers.Contains(proposedIdentifier))
+            if (existingIdentifiers?.Contains(proposedIdentifier) != true)
             {
                 return proposedIdentifier;
             }

@@ -22,6 +22,9 @@ using Xunit;
 // ReSharper disable StringEndsWithIsCultureSpecific
 // ReSharper disable ReplaceWithSingleCallToSingle
 // ReSharper disable once CheckNamespace
+
+#pragma warning disable RCS1202 // Avoid NullReferenceException.
+
 namespace Microsoft.EntityFrameworkCore.Query
 {
     public abstract class GearsOfWarQueryTestBase<TFixture> : QueryTestBase<TFixture>
@@ -1370,7 +1373,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQuery<Gear>(
                 isAsync,
                 gs => from g in gs
-                      // ReSharper disable once ConstantNullCoalescingCondition
+                          // ReSharper disable once ConstantNullCoalescingCondition
                       where (new
                       {
                           Name = g.LeaderNickname
@@ -1428,7 +1431,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQuery<Gear>(
                 isAsync,
                 gs => from g in gs
-                      // ReSharper disable once EqualExpressionComparison
+                          // ReSharper disable once EqualExpressionComparison
                       where new
                       {
                           Five = 5
@@ -1968,6 +1971,19 @@ namespace Microsoft.EntityFrameworkCore.Query
                     },
                 elementSorter: e => e.FullName);
         }
+        
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Join_with_order_by_without_skip_or_take(bool isAsync)
+        {
+            return AssertQuery<Gear, Weapon>(
+                isAsync,
+                (gs, ws) =>
+                    from g in gs
+                    join w in ws.OrderBy(ww => ww.Name) on g.FullName equals w.OwnerFullName
+                    select new { w.Name, g.FullName },
+                elementSorter: w => w.Name);
+        }
 
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
@@ -1978,10 +1994,10 @@ namespace Microsoft.EntityFrameworkCore.Query
                 (ts, gs) =>
                     (from t in ts
                      join g in gs.OfType<Officer>() on new
-                         {
-                             id1 = t.GearSquadId,
-                             id2 = t.GearNickName
-                         }
+                     {
+                         id1 = t.GearSquadId,
+                         id2 = t.GearNickName
+                     }
                          equals new
                          {
                              id1 = (int?)g.SquadId,
@@ -2003,10 +2019,10 @@ namespace Microsoft.EntityFrameworkCore.Query
                 (gs, ts) =>
                     (from g in gs.OfType<Officer>()
                      join t in ts on new
-                         {
-                             id1 = (int?)g.SquadId,
-                             id2 = g.Nickname
-                         }
+                     {
+                         id1 = (int?)g.SquadId,
+                         id2 = g.Nickname
+                     }
                          equals new
                          {
                              id1 = t.GearSquadId,
@@ -2257,7 +2273,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                       join g2 in gs.Include(g => g.Weapons)
                           on g1.LeaderNickname equals g2.Nickname into grouping
                       from g2 in grouping.DefaultIfEmpty()
-                      // ReSharper disable once MergeConditionalExpression
+                          // ReSharper disable once MergeConditionalExpression
 #pragma warning disable IDE0029 // Use coalesce expression
                       select g2 != null ? g2 : g1,
 #pragma warning restore IDE0029 // Use coalesce expression
@@ -2280,7 +2296,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                       join g2 in gs.Include(g => g.Weapons)
                           on g1.LeaderNickname equals g2.Nickname into grouping
                       from g2 in grouping.DefaultIfEmpty()
-                      // ReSharper disable once MergeConditionalExpression
+                          // ReSharper disable once MergeConditionalExpression
 #pragma warning disable IDE0029 // Use coalesce expression
                       select new
                       {
@@ -2851,6 +2867,28 @@ namespace Microsoft.EntityFrameworkCore.Query
                       select m.Timeline.AddMilliseconds(300));
         }
 
+        [ConditionalFact]
+        public virtual void Where_datetimeoffset_milliseconds_parameter_and_constant()
+        {
+            using (var ctx = CreateContext())
+            {
+                var dateTimeOffset =  new DateTimeOffset(599898024001234567, new TimeSpan(1, 30, 0));
+
+                // Parameter where clause
+                Assert.Equal(1, ctx.Missions.Where(m => m.Timeline == dateTimeOffset).Count());
+
+                // Literal where clause
+                var p = System.Linq.Expressions.Expression.Parameter(typeof(Mission), "i");
+                var dynamicWhere = System.Linq.Expressions.Expression.Lambda<Func<Mission, bool>>(
+                    System.Linq.Expressions.Expression.Equal(
+                        System.Linq.Expressions.Expression.Property(p, "Timeline"),
+                        System.Linq.Expressions.Expression.Constant(dateTimeOffset)
+                    ), p);
+
+                Assert.Equal(1, ctx.Missions.Where(dynamicWhere).Count());
+            }
+        }
+
         [ConditionalTheory]
         [InlineData(false)]
         //[InlineData(true)] issue #12449
@@ -3332,7 +3370,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
-        public virtual Task Subquery_is_not_lifted_from_additional_from_clause(bool isAsync)
+        public virtual Task Subquery_is_lifted_from_additional_from_clause(bool isAsync)
         {
             return AssertQuery<Gear>(
                 isAsync,
@@ -3558,6 +3596,83 @@ namespace Microsoft.EntityFrameworkCore.Query
                 Assert.Equal("Swarm", result[1].Name);
                 Assert.False(result[1].Eradicated);
             }
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Can_query_on_indexed_properties(bool isAsync)
+        {
+            return AssertQuery<City>(
+                isAsync,
+                cs => from c in cs
+                      where (string)c[City.NationPropertyName] == "Tyrus"
+                      select c);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Can_query_on_indexed_properties_when_property_name_from_closure(bool isAsync)
+        {
+            var nationPropertyName = City.NationPropertyName;
+
+            return AssertQuery<City>(
+                isAsync,
+                cs => from c in cs
+                      where (string)c[nationPropertyName] == "Tyrus"
+                      select c);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Can_query_projection_on_indexed_properties(bool isAsync)
+        {
+            return AssertQuery<City>(
+                isAsync,
+                cs => from c in cs
+                      where (string)c[City.NationPropertyName] == "Tyrus"
+                      select (string)c[City.NationPropertyName]);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Can_order_by_indexed_property_on_query(bool isAsync)
+        {
+            return AssertQuery<City>(
+                isAsync,
+                cs => from c in cs
+                      orderby (string)c[City.NationPropertyName]
+                      select c);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Can_group_by_indexed_property_on_query(bool isAsync)
+        {
+            return AssertQueryScalar<City>(
+                isAsync,
+                cs => cs.GroupBy(c => c[City.NationPropertyName]).Select(g => g.Count()));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Can_group_by_converted_indexed_property_on_query(bool isAsync)
+        {
+            return AssertQueryScalar<City>(
+                isAsync,
+                cs => cs.GroupBy(c => (string)c[City.NationPropertyName]).Select(g => g.Count()));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Can_join_on_indexed_property_on_query(bool isAsync)
+        {
+            return AssertQuery<City>(
+                isAsync,
+                cs =>
+                    (from c1 in cs
+                     join c2 in cs
+                         on c1[City.NationPropertyName] equals c2[City.NationPropertyName]
+                     select new { c1.Name, c2.Location }));
         }
 
         [ConditionalFact]
@@ -3835,7 +3950,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             {
                 var query = from g1 in ctx.Gears
                             from g2 in ctx.Gears
-                            // ReSharper disable once PossibleUnintendedReferenceComparison
+                                // ReSharper disable once PossibleUnintendedReferenceComparison
                             where g1.Weapons == g2.Weapons
                             orderby g1.Nickname
                             select new
@@ -4322,9 +4437,9 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQueryScalar<Gear>(
                 isAsync,
                 gs => (from g in gs
-                      where g.Nickname != "Marcus"
-                      orderby g.Nickname
-                      select g.Weapons.ToList()).Select(e => e.Count),
+                       where g.Nickname != "Marcus"
+                       orderby g.Nickname
+                       select g.Weapons.ToList()).Select(e => e.Count),
                 assertOrder: true);
         }
 
@@ -4972,7 +5087,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 isAsync,
                 ss => ss.OrderBy(s => s.Name).Select(s => s.Members.OrderBy(m => m.Nickname).Skip(1)),
                 assertOrder: true,
-                elementAsserter: (e, a) => { CollectionAsserter<Gear>(elementAsserter: (ee, aa) => Assert.Equal(ee.Nickname, aa.Nickname))(e, a); });
+                elementAsserter: (e, a) => CollectionAsserter<Gear>(elementAsserter: (ee, aa) => Assert.Equal(ee.Nickname, aa.Nickname))(e, a));
         }
 
         [ConditionalTheory]
@@ -4983,7 +5098,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 isAsync,
                 ss => ss.OrderBy(s => s.Name).Select(s => s.Members.OrderBy(m => m.Nickname).Take(2)),
                 assertOrder: true,
-                elementAsserter: (e, a) => { CollectionAsserter<Gear>(elementAsserter: (ee, aa) => Assert.Equal(ee.Nickname, aa.Nickname))(e, a); });
+                elementAsserter: (e, a) => CollectionAsserter<Gear>(elementAsserter: (ee, aa) => Assert.Equal(ee.Nickname, aa.Nickname))(e, a));
         }
 
         [ConditionalTheory]
@@ -4994,7 +5109,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 isAsync,
                 ss => ss.OrderBy(s => s.Name).Select(s => s.Members.OrderBy(m => m.Nickname).Distinct()),
                 assertOrder: true,
-                elementAsserter: (e, a) => { CollectionAsserter<Gear>(elementAsserter: (ee, aa) => Assert.Equal(ee.Nickname, aa.Nickname))(e, a); });
+                elementAsserter: (e, a) => CollectionAsserter<Gear>(elementAsserter: (ee, aa) => Assert.Equal(ee.Nickname, aa.Nickname))(e, a));
         }
 
         [ConditionalTheory]
@@ -5005,7 +5120,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 isAsync,
                 ss => ss.OrderBy(s => s.Name).Select(s => s.Members.OrderBy(m => m.Nickname).Select(m => m.FullName).FirstOrDefault()),
                 assertOrder: true,
-                elementAsserter: (e, a) => { CollectionAsserter<Gear>(elementAsserter: (ee, aa) => Assert.Equal(ee.Nickname, aa.Nickname)); });
+                elementAsserter: (e, a) => CollectionAsserter<Gear>(elementAsserter: (ee, aa) => Assert.Equal(ee.Nickname, aa.Nickname)));
         }
 
         [ConditionalTheory]
@@ -5125,7 +5240,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                         elementAsserter: (ee, aa) => CollectionAsserter<Weapon>(eee => eee.Id, (eee, aaa) => Assert.Equal(eee.Id, aaa.Id))));
         }
 
-#if !Test21
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Correlated_collections_from_left_join_with_additional_elements_projected_of_that_join(bool isAsync)
@@ -5155,7 +5269,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                         })(e, a);
                 });
         }
-#endif
 
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
@@ -6392,7 +6505,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                 elementAsserter: CollectionAsserter<Gear>(ee => ee.FullName, (ee, aa) => Assert.Equal(ee.FullName, aa.FullName)));
         }
 
-#if !Test21
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Correlated_collection_with_very_complex_order_by(bool isAsync)
@@ -6405,7 +6517,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                 assertOrder: true,
                 elementAsserter: CollectionAsserter<Gear>(ee => ee.FullName, (ee, aa) => Assert.Equal(ee.FullName, aa.FullName)));
         }
-#endif
 
         [ConditionalFact]
         public virtual void Cast_to_derived_type_causes_client_eval()
@@ -6595,7 +6706,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                 elementAsserter: CollectionAsserter<Gear>(e => e.Nickname, (e, a) => Assert.Equal(e.Nickname, a.Nickname)));
         }
 
-#if !Test21
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Correlated_collection_with_complex_order_by_funcletized_to_constant_bool(bool isAsync)
@@ -6613,7 +6723,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                     CollectionAsserter<string>(ee => ee)(e.Weapons, a.Weapons);
                 });
         }
-#endif
 
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
@@ -6740,7 +6849,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
             return AssertQueryScalar<Gear>(
                 isAsync,
-                gs => gs.Include(g => g.CityOfBirth ).GroupBy(g => g.Rank).Select(g => g.Average(gg => gg.SquadId)));
+                gs => gs.Include(g => g.CityOfBirth).GroupBy(g => g.Rank).Select(g => g.Average(gg => gg.SquadId)));
         }
 
         [ConditionalTheory]
@@ -6926,7 +7035,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return Task.CompletedTask;
         }
 
-        public  TEntity Client<TEntity>(TEntity entity) => entity;
+        public TEntity Client<TEntity>(TEntity entity) => entity;
 
         [ConditionalTheory]
         [MemberData(nameof(IsAsyncData))]
@@ -7033,7 +7142,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                           WeaponName = automaticWeapons.FirstOrDefault().Name
                       },
 
-
                 gs => from g in gs
                       where g.Nickname != "Dom"
                       let automaticWeapons
@@ -7050,9 +7158,59 @@ namespace Microsoft.EntityFrameworkCore.Query
                 {
                     Assert.Equal(e.Nickname, a.Nickname);
                     Assert.Equal(e.WeaponName, a.WeaponName);
-
                 });
         }
+
+        [ConditionalTheory(Skip = "issue #13721")]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Null_semantics_is_correctly_applied_for_function_comparisons_that_take_arguments_from_optional_navigation(bool isAsync)
+        {
+            return AssertQuery<CogTag>(
+                isAsync,
+                ts => ts.Where(t => t.Note.Substring(0, t.Gear.SquadId) == t.GearNickName),
+                ts => ts.Where(t => Maybe(t.Gear, () => t.Note.Substring(0, t.Gear.SquadId)) == t.GearNickName));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Null_semantics_is_correctly_applied_for_function_comparisons_that_take_arguments_from_optional_navigation_complex(bool isAsync)
+        {
+            return AssertQuery<CogTag>(
+                isAsync,
+                ts => ts.Where(t => t.Note.Substring(0, t.Gear.Squad.Name.Length) == t.GearNickName),
+                ts => ts.Where(t => Maybe(t.Gear, () => t.Note.Substring(0, t.Gear.Squad.Name.Length)) == t.GearNickName));
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Filter_with_new_Guid(bool isAsync)
+        {
+            return AssertQuery<CogTag>(
+                isAsync,
+                ts => from t in ts
+                      where t.Id == new Guid("DF36F493-463F-4123-83F9-6B135DEEB7BA")
+                      select t);
+        }
+
+        public virtual async Task Filter_with_new_Guid_closure(bool isAsync)
+        {
+            var guid = "DF36F493-463F-4123-83F9-6B135DEEB7BD";
+
+            await AssertQuery<CogTag>(
+                isAsync,
+                ts => from t in ts
+                      where t.Id == new Guid(guid)
+                      select t);
+
+            guid = "B39A6FBA-9026-4D69-828E-FD7068673E57";
+
+            await AssertQuery<CogTag>(
+                isAsync,
+                ts => from t in ts
+                      where t.Id == new Guid(guid)
+                      select t);
+        }
+
 
         protected GearsOfWarContext CreateContext() => Fixture.CreateContext();
 

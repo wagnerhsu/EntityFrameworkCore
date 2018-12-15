@@ -438,7 +438,6 @@ namespace Microsoft.EntityFrameworkCore
                 Sql);
         }
 
-#if !Test21
         [Fact]
         public virtual void AlterColumnOperation_with_index_included_column()
         {
@@ -480,7 +479,45 @@ namespace Microsoft.EntityFrameworkCore
                 "CREATE INDEX [IX_Person_FirstName_LastName] ON [Person] ([FirstName], [LastName]) INCLUDE ([Name]);" + EOL,
                 Sql);
         }
-#endif
+
+        [Fact]
+        public virtual void AlterColumnOperation_with_index_no_included()
+        {
+            Generate(
+                modelBuilder => modelBuilder
+                    .HasAnnotation(CoreAnnotationNames.ProductVersionAnnotation, "1.1.0")
+                    .Entity(
+                        "Person", x =>
+                        {
+                            x.Property<string>("Name").HasMaxLength(30);
+                            x.Property<string>("FirstName");
+                            x.Property<string>("LastName");
+                            x.HasIndex("FirstName", "LastName");
+                        }),
+                new AlterColumnOperation
+                {
+                    Table = "Person",
+                    Name = "Name",
+                    ClrType = typeof(string),
+                    MaxLength = 30,
+                    IsNullable = true,
+                    OldColumn = new ColumnOperation
+                    {
+                        ClrType = typeof(string),
+                        IsNullable = true
+                    }
+                });
+
+            Assert.Equal(
+                "DECLARE @var0 sysname;" + EOL +
+                "SELECT @var0 = [d].[name]" + EOL +
+                "FROM [sys].[default_constraints] [d]" + EOL +
+                "INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]" + EOL +
+                "WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Person]') AND [c].[name] = N'Name');" + EOL +
+                "IF @var0 IS NOT NULL EXEC(N'ALTER TABLE [Person] DROP CONSTRAINT [' + @var0 + '];');" + EOL +
+                "ALTER TABLE [Person] ALTER COLUMN [Name] nvarchar(30) NULL;" + EOL,
+                Sql);
+        }
 
         [Fact]
         public virtual void AlterColumnOperation_with_index_no_oldColumn()
@@ -597,6 +634,53 @@ namespace Microsoft.EntityFrameworkCore
                 "GO" + EOL +
                 EOL +
                 "CREATE INDEX [IX_Person_Name] ON [Person] ([Name]);" + EOL,
+                Sql);
+        }
+
+        [Fact]
+        public virtual void AlterColumnOperation_with_added_online_index()
+        {
+            Generate(
+                modelBuilder => modelBuilder
+                    .HasAnnotation(CoreAnnotationNames.ProductVersionAnnotation, "1.1.0")
+                    .Entity(
+                        "Person", x =>
+                        {
+                            x.Property<string>("Name").HasMaxLength(30);
+                            x.HasIndex("Name").ForSqlServerIsOnline();
+                        }),
+                new AlterColumnOperation
+                {
+                    Table = "Person",
+                    Name = "Name",
+                    ClrType = typeof(string),
+                    MaxLength = 30,
+                    IsNullable = true,
+                    OldColumn = new ColumnOperation
+                    {
+                        ClrType = typeof(string),
+                        IsNullable = true
+                    }
+                },
+                new CreateIndexOperation
+                {
+                    Name = "IX_Person_Name",
+                    Table = "Person",
+                    Columns = new[] { "Name" },
+                    [SqlServerAnnotationNames.Online] = true
+                });
+
+            Assert.Equal(
+                "DECLARE @var0 sysname;" + EOL +
+                "SELECT @var0 = [d].[name]" + EOL +
+                "FROM [sys].[default_constraints] [d]" + EOL +
+                "INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]" + EOL +
+                "WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Person]') AND [c].[name] = N'Name');" + EOL +
+                "IF @var0 IS NOT NULL EXEC(N'ALTER TABLE [Person] DROP CONSTRAINT [' + @var0 + '];');" + EOL +
+                "ALTER TABLE [Person] ALTER COLUMN [Name] nvarchar(30) NULL;" + EOL +
+                "GO" + EOL +
+                EOL +
+                "CREATE INDEX [IX_Person_Name] ON [Person] ([Name]) WITH (ONLINE = ON);" + EOL,
                 Sql);
         }
 
@@ -863,7 +947,6 @@ namespace Microsoft.EntityFrameworkCore
                 Sql);
         }
 
-#if !Test21
         [Fact]
         public virtual void CreateIndexOperation_with_include()
         {
@@ -937,6 +1020,26 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [Fact]
+        public virtual void CreateIndexOperation_unique_with_include_and_filter_online()
+        {
+            Generate(
+                new CreateIndexOperation
+                {
+                    Name = "IX_People_Name",
+                    Table = "People",
+                    Columns = new[] { "Name" },
+                    IsUnique = true,
+                    Filter = "[Name] IS NOT NULL AND <> ''",
+                    [SqlServerAnnotationNames.Include] = new[] { "FirstName", "LastName" },
+                    [SqlServerAnnotationNames.Online] = true
+                });
+
+            Assert.Equal(
+                "CREATE UNIQUE INDEX [IX_People_Name] ON [People] ([Name]) INCLUDE ([FirstName], [LastName]) WHERE [Name] IS NOT NULL AND <> '' WITH (ONLINE = ON);" + EOL,
+                Sql);
+        }
+
+        [Fact]
         public virtual void CreateIndexOperation_unique_with_include_non_legacy()
         {
             Generate(
@@ -954,7 +1057,6 @@ namespace Microsoft.EntityFrameworkCore
                 "CREATE UNIQUE INDEX [IX_People_Name] ON [People] ([Name]) INCLUDE ([FirstName], [LastName]);" + EOL,
                 Sql);
         }
-#endif
 
         [Fact]
         public virtual void CreateIndexOperation_unique_bound_null()
@@ -1171,7 +1273,6 @@ namespace Microsoft.EntityFrameworkCore
                 Sql);
         }
 
-#if  !Test21
         [Fact]
         public virtual void MoveSequenceOperation_into_default()
         {
@@ -1189,7 +1290,6 @@ namespace Microsoft.EntityFrameworkCore
                 "EXEC(N'ALTER SCHEMA [' + @defaultSchema + N'] TRANSFER [dbo].[EntityFrameworkHiLoSequence];');" + EOL,
                 Sql);
         }
-#endif
 
         [Fact]
         public virtual void MoveTableOperation_legacy()
@@ -1225,7 +1325,6 @@ namespace Microsoft.EntityFrameworkCore
                 Sql);
         }
 
-#if !Test21
         [Fact]
         public virtual void MoveTableOperation_into_default()
         {
@@ -1243,7 +1342,6 @@ namespace Microsoft.EntityFrameworkCore
                 "EXEC(N'ALTER SCHEMA [' + @defaultSchema + N'] TRANSFER [dbo].[People];');" + EOL,
                 Sql);
         }
-#endif
 
         [Fact]
         public virtual void RenameColumnOperation()

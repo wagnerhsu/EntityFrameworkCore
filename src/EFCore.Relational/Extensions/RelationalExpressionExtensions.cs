@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
@@ -94,7 +95,14 @@ namespace Microsoft.EntityFrameworkCore.Internal
                 case UnaryExpression unaryExpression:
                     return unaryExpression.Operand.FindProperty(targetType);
                 case SqlFunctionExpression functionExpression:
-                    var properties = functionExpression.Arguments
+                    IEnumerable<Expression> arguments = functionExpression.Arguments;
+                    if (functionExpression.Instance != null)
+                    {
+                        arguments = arguments.Concat(
+                            new[] { functionExpression.Instance });
+                    }
+
+                    var properties = arguments
                         .Select(e => e.FindProperty(targetType))
                         .Where(p => p != null && p.ClrType.UnwrapNullableType() == targetType)
                         .ToList();
@@ -142,5 +150,12 @@ namespace Microsoft.EntityFrameworkCore.Internal
 
             return null;
         }
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        public static Expression UnwrapAliasExpression(this Expression expression)
+            => (expression as AliasExpression)?.Expression ?? expression;
     }
 }

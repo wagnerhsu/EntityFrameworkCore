@@ -140,21 +140,11 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     options,
                     new DiagnosticListener("Fake"));
 
-                var contextServices = testHelpers.CreateContextServices();
-
-                ModelBuilder = new ModelBuilder(
-                    new CompositeConventionSetBuilder(contextServices.GetRequiredService<IEnumerable<IConventionSetBuilder>>().ToList())
-                        .AddConventions(
-                            new CoreConventionSetBuilder(
-                                    contextServices.GetRequiredService<CoreConventionSetBuilderDependencies>().With(modelLogger))
-                                .CreateConventionSet()));
-
-                ModelValidator = new ModelValidator(new ModelValidatorDependencies(validationLogger, modelLogger));
+                ModelBuilder = testHelpers.CreateConventionBuilder(modelLogger, validationLogger);
             }
 
             public virtual IMutableModel Model => ModelBuilder.Model;
-            protected ModelBuilder ModelBuilder { get; }
-            protected IModelValidator ModelValidator { get; }
+            public ModelBuilder ModelBuilder { get; }
             public ListLoggerFactory ValidationLoggerFactory { get; }
             public ListLoggerFactory ModelLoggerFactory { get; }
 
@@ -176,13 +166,15 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public abstract TestQueryTypeBuilder<TQuery> Query<TQuery>()
                 where TQuery : class;
 
+            public abstract TestModelBuilder Query<TQuery>(Action<TestQueryTypeBuilder<TQuery>> buildAction)
+                where TQuery : class;
+
             public abstract TestModelBuilder Ignore<TEntity>()
                 where TEntity : class;
 
             public virtual TestModelBuilder Validate()
             {
-                var modelBuilder = ModelBuilder.GetInfrastructure().Metadata.Validate();
-                ModelValidator.Validate(modelBuilder.Metadata);
+                ModelBuilder.FinalizeModel();
 
                 return this;
             }

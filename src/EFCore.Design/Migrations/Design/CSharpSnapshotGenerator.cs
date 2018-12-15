@@ -54,7 +54,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Design
 
             var annotations = model.GetAnnotations().ToList();
 
-            if (annotations.Any())
+            if (annotations.Count > 0)
             {
                 stringBuilder.Append(builderName);
 
@@ -509,7 +509,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Design
                 CoreAnnotationNames.TypeMapping,
                 CoreAnnotationNames.ValueComparer,
                 CoreAnnotationNames.KeyValueComparer,
-                CoreAnnotationNames.DeepValueComparer);
+                CoreAnnotationNames.StructuralValueComparer);
 
             GenerateAnnotations(annotations, stringBuilder);
         }
@@ -717,7 +717,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Design
                         .Append("<")
                         .Append(Code.Reference(propertyClrType))
                         .Append(">(")
-                        .Append(Code.UnknownLiteral(discriminatorPropertyAnnotation.Value))
+                        .Append(Code.Literal((string)discriminatorPropertyAnnotation.Value))
                         .Append(")");
                 }
                 else
@@ -762,7 +762,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Design
                 CoreAnnotationNames.PropertyAccessModeAnnotation,
                 CoreAnnotationNames.ConstructorBinding);
 
-            if (annotations.Any())
+            if (annotations.Count > 0)
             {
                 foreach (var annotation in annotations)
                 {

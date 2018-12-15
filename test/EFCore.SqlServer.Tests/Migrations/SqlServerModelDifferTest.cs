@@ -241,6 +241,30 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         }
 
         [Fact]
+        public void Add_non_clustered_primary_key_with_owned()
+        {
+            Execute(
+                _ => { },
+                target => target.Entity(
+                    "Ram",
+                    x =>
+                    {
+                        x.Property<int>("Id");
+                        x.HasKey("Id").ForSqlServerIsClustered(false);
+                        x.OwnsOne("Address", "Address");
+                    }),
+                operations =>
+                {
+                    Assert.Equal(1, operations.Count);
+
+                    var createTableOperation = Assert.IsType<CreateTableOperation>(operations[0]);
+                    var addKey = createTableOperation.PrimaryKey;
+                    Assert.Equal("PK_Ram", addKey.Name);
+                    Assert.False((bool)addKey[SqlServerAnnotationNames.Clustered]);
+                });
+        }
+
+        [Fact]
         public void Alter_unique_constraint_clustering()
         {
             Execute(
@@ -359,8 +383,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                         var m = Assert.IsType<InsertDataOperation>(o);
                         AssertMultidimensionalArray(
                             m.Values,
-                            v => Assert.Equal(43, v),
-                            v => Assert.Equal(0, v));
+                            v => Assert.Equal(43, v));
                     }),
                 downOps => Assert.Collection(
                     downOps,
@@ -431,7 +454,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             Execute(
                 _ => { },
                 modelBuilder => modelBuilder.HasDbFunction(mi),
-                operations => { Assert.Equal(0, operations.Count); });
+                operations => Assert.Equal(0, operations.Count));
         }
 
         [Fact]
@@ -640,7 +663,6 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                     }));
         }
 
-
         [Fact]
         public void Dont_rebuild_index_with_equal_include()
         {
@@ -667,10 +689,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                             x.HasIndex("Zip")
                                 .ForSqlServerInclude("City");
                         }),
-                operations =>
-                {
-                    Assert.Equal(0, operations.Count);
-                });
+                operations => Assert.Equal(0, operations.Count));
         }
 
         [Fact]
@@ -719,6 +738,82 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                     var annotationValue = Assert.IsType<string[]>(annotation.Value);
                     Assert.Equal(1, annotationValue.Length);
                     Assert.Equal("Street", annotationValue[0]);
+                });
+        }
+
+        [Fact]
+        public void Dont_rebuild_index_with_unchanged_online_option()
+        {
+            Execute(
+                source => source
+                    .Entity(
+                        "Address",
+                        x =>
+                        {
+                            x.Property<int>("Id");
+                            x.Property<string>("Zip");
+                            x.Property<string>("City");
+                            x.HasIndex("Zip")
+                                .ForSqlServerIsOnline();
+                        }),
+                target => target
+                    .Entity(
+                        "Address",
+                        x =>
+                        {
+                            x.Property<int>("Id");
+                            x.Property<string>("Zip");
+                            x.Property<string>("City");
+                            x.HasIndex("Zip")
+                                .ForSqlServerIsOnline();
+                        }),
+                operations => Assert.Equal(0, operations.Count));
+        }
+
+        [Fact]
+        public void Rebuild_index_when_changing_online_option()
+        {
+            Execute(
+                source => source
+                    .Entity(
+                        "Address",
+                        x =>
+                        {
+                            x.Property<int>("Id");
+                            x.Property<string>("Zip");
+                            x.Property<string>("City");
+                            x.Property<string>("Street");
+                            x.HasIndex("Zip");
+                        }),
+                target => target
+                    .Entity(
+                        "Address",
+                        x =>
+                        {
+                            x.Property<int>("Id");
+                            x.Property<string>("Zip");
+                            x.Property<string>("City");
+                            x.Property<string>("Street");
+                            x.HasIndex("Zip")
+                                .ForSqlServerIsOnline();
+                        }),
+                operations =>
+                {
+                    Assert.Equal(2, operations.Count);
+
+                    var operation1 = Assert.IsType<DropIndexOperation>(operations[0]);
+                    Assert.Equal("Address", operation1.Table);
+                    Assert.Equal("IX_Address_Zip", operation1.Name);
+
+                    var operation2 = Assert.IsType<CreateIndexOperation>(operations[1]);
+                    Assert.Equal("Address", operation1.Table);
+                    Assert.Equal("IX_Address_Zip", operation1.Name);
+
+                    var annotation = operation2.GetAnnotation(SqlServerAnnotationNames.Online);
+                    Assert.NotNull(annotation);
+
+                    var annotationValue = Assert.IsType<bool>(annotation.Value);
+                    Assert.True(annotationValue);
                 });
         }
 

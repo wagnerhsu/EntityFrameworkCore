@@ -41,12 +41,12 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
             var sourceModelBuilder = CreateModelBuilder();
             buildCommonAction(sourceModelBuilder);
             buildSourceAction(sourceModelBuilder);
-            sourceModelBuilder.GetInfrastructure().Metadata.Validate();
+            sourceModelBuilder.FinalizeModel();
 
             var targetModelBuilder = CreateModelBuilder();
             buildCommonAction(targetModelBuilder);
             buildTargetAction(targetModelBuilder);
-            targetModelBuilder.GetInfrastructure().Metadata.Validate();
+            targetModelBuilder.FinalizeModel();
 
             var modelDiffer = CreateModelDiffer(targetModelBuilder.Model);
 
@@ -107,8 +107,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
         }
 
         protected abstract TestHelpers TestHelpers { get; }
-        protected virtual ModelBuilder CreateModelBuilder() => TestHelpers.CreateConventionBuilder();
-        protected virtual IModelValidator CreateModelValidator() => TestHelpers.CreateContextServices().GetRequiredService<IModelValidator>();
+        protected virtual ModelBuilder CreateModelBuilder() => TestHelpers.CreateConventionBuilder(skipValidation: true);
 
         protected virtual MigrationsModelDiffer CreateModelDiffer(IModel model)
         {

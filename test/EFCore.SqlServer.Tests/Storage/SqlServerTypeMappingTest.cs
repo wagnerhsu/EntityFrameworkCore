@@ -7,6 +7,7 @@ using System.Data.Common;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
@@ -117,9 +118,12 @@ namespace Microsoft.EntityFrameworkCore.Storage
         [Fact]
         public virtual void Create_and_clone_UDT_mapping_with_converter()
         {
+            Func<object, Expression> literalGenerator = Expression.Constant;
+
             var mapping = new SqlServerUdtTypeMapping(
                 typeof(object),
                 "storeType",
+                literalGenerator,
                 StoreTypePostfix.None,
                 "udtType",
                 new FakeValueConverter(),
@@ -150,6 +154,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
             Assert.Same(typeof(object), clone.ClrType);
             Assert.True(mapping.IsFixedLength);
             Assert.True(clone.IsFixedLength);
+            Assert.Same(literalGenerator, clone.LiteralGenerator);
 
             var newConverter = new FakeValueConverter();
             clone = (SqlServerUdtTypeMapping)mapping.Clone(newConverter);
@@ -171,6 +176,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
             Assert.Same(typeof(object), clone.ClrType);
             Assert.True(mapping.IsFixedLength);
             Assert.True(clone.IsFixedLength);
+            Assert.Same(literalGenerator, clone.LiteralGenerator);
         }
 
         public static RelationalTypeMapping GetMapping(Type type)
@@ -197,7 +203,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
             Test_GenerateSqlLiteral_helper(
                 GetMapping(typeof(DateTimeOffset)),
                 new DateTimeOffset(2015, 3, 12, 13, 36, 37, 371, new TimeSpan(-7, 0, 0)),
-                "'2015-03-12T13:36:37.371-07:00'");
+                "'2015-03-12T13:36:37.3710000-07:00'");
         }
 
         public override void DateTime_literal_generated_correctly()
@@ -268,7 +274,6 @@ namespace Microsoft.EntityFrameworkCore.Storage
             Test_GenerateSqlLiteral_helper(GetMapping("nvarchar(max)"), "Text", "N'Text'");
             Test_GenerateSqlLiteral_helper(GetMapping("varchar(max)"), "Text", "'Text'");
         }
-
 
         public static RelationalTypeMapping GetMapping(string type)
             => new SqlServerTypeMappingSource(

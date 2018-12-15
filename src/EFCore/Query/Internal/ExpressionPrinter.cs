@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Extensions.Internal;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -633,7 +632,17 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             if (methodCallExpression.Object != null)
             {
-                Visit(methodCallExpression.Object);
+                if (methodCallExpression.Object is BinaryExpression)
+                {
+                    _stringBuilder.Append("(");
+                    Visit(methodCallExpression.Object);
+                    _stringBuilder.Append(")");
+                }
+                else
+                {
+                    Visit(methodCallExpression.Object);
+                }
+
                 _stringBuilder.Append(".");
             }
 
@@ -809,7 +818,18 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             {
                 case ExpressionType.Convert:
                     _stringBuilder.Append("(" + unaryExpression.Type.ShortDisplayName() + ")");
-                    Visit(unaryExpression.Operand);
+
+                    if (unaryExpression.Operand is BinaryExpression)
+                    {
+                        _stringBuilder.Append("(");
+                        Visit(unaryExpression.Operand);
+                        _stringBuilder.Append(")");
+                    }
+                    else
+                    {
+                        Visit(unaryExpression.Operand);
+                    }
+
                     break;
 
                 case ExpressionType.Throw:

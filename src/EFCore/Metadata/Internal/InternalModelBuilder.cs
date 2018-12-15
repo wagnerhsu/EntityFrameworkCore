@@ -125,14 +125,27 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
+        public virtual InternalEntityTypeBuilder Query([NotNull] string name, ConfigurationSource configurationSource)
+            => Query(new TypeIdentity(name), configurationSource);
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
         public virtual InternalEntityTypeBuilder Query([NotNull] Type clrType, ConfigurationSource configurationSource)
+            => Query(new TypeIdentity(clrType, Metadata), configurationSource);
+
+        private InternalEntityTypeBuilder Query(in TypeIdentity type, ConfigurationSource configurationSource)
         {
-            if (IsIgnored(clrType, configurationSource))
+            if (IsIgnored(type, configurationSource))
             {
                 return null;
             }
 
-            var entityType = Metadata.FindEntityType(clrType);
+            var clrType = type.Type;
+            var entityType = clrType == null
+                ? Metadata.FindEntityType(type.Name)
+                : Metadata.FindEntityType(clrType);
 
             using (Metadata.ConventionDispatcher.StartBatch())
             {
@@ -156,7 +169,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
 
                 Metadata.Unignore(clrType);
 
-                entityType = Metadata.AddQueryType(clrType, configurationSource);
+                Metadata.Unignore(type.Name);
+                entityType = clrType == null
+                    ? Metadata.AddQueryType(type.Name, configurationSource)
+                    : Metadata.AddQueryType(clrType, configurationSource);
 
                 return entityType.Builder;
             }
@@ -273,56 +289,52 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             }
 
             var clrType = type.Type;
+            if (clrType == null)
+            {
+                Metadata.Unignore(type.Name);
+
+                Metadata.MarkAsOwnedType(type.Name);
+            }
+            else
+            {
+                Metadata.Unignore(type.Name);
+
+                Metadata.MarkAsOwnedType(clrType);
+            }
+
             var entityType = clrType == null
                 ? Metadata.FindEntityType(type.Name)
                 : Metadata.FindEntityType(clrType);
 
-            using (Metadata.ConventionDispatcher.StartBatch())
+            if (entityType?.GetForeignKeys().Any(fk => fk.IsOwnership) == false)
             {
-                if (entityType != null
-                    && !entityType.GetForeignKeys().Any(fk => fk.IsOwnership))
+                if (!configurationSource.Overrides(entityType.GetConfigurationSource()))
                 {
-                    if (!configurationSource.Overrides(entityType.GetConfigurationSource()))
+                    return false;
+                }
+
+                if (entityType.GetConfigurationSource() == ConfigurationSource.Explicit)
+                {
+                    throw new InvalidOperationException(CoreStrings.ClashingNonOwnedEntityType(entityType.DisplayName()));
+                }
+
+                var ownershipCandidate = entityType.GetForeignKeys().FirstOrDefault(
+                    fk => fk.PrincipalToDependent != null
+                          && !fk.PrincipalEntityType.IsInOwnershipPath(entityType)
+                          && !fk.PrincipalEntityType.IsInDefinitionPath(clrType));
+                if (ownershipCandidate != null)
+                {
+                    if (ownershipCandidate.Builder.IsOwnership(true, configurationSource) == null)
                     {
                         return false;
                     }
-
-                    if (entityType.GetConfigurationSource() == ConfigurationSource.Explicit)
-                    {
-                        throw new InvalidOperationException(CoreStrings.ClashingNonOwnedEntityType(entityType.DisplayName()));
-                    }
-
-                    var ownership = entityType.GetForeignKeys().FirstOrDefault(
-                        fk => fk.PrincipalToDependent != null
-                              && !fk.PrincipalEntityType.IsInOwnershipPath(entityType)
-                              && !fk.PrincipalEntityType.IsInDefinitionPath(clrType));
-                    if (ownership != null)
-                    {
-                        if (ownership.Builder.IsOwnership(true, configurationSource) == null)
-                        {
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        if (!entityType.Builder.RemoveNonOwnershipRelationships(configurationSource))
-                        {
-                            return false;
-                        }
-                    }
-                }
-
-                if (clrType == null)
-                {
-                    Metadata.Unignore(type.Name);
-
-                    Metadata.MarkAsOwnedType(type.Name);
                 }
                 else
                 {
-                    Metadata.Unignore(type.Name);
-
-                    Metadata.MarkAsOwnedType(clrType);
+                    if (!entityType.Builder.RemoveNonOwnershipRelationships(null, configurationSource))
+                    {
+                        return false;
+                    }
                 }
             }
 

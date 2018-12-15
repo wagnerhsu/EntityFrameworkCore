@@ -2587,33 +2587,32 @@ namespace Microsoft.EntityFrameworkCore
 
         #region Tagging
 
-        internal static readonly MethodInfo WithTagMethodInfo
+        internal static readonly MethodInfo TagWithMethodInfo
             = typeof(EntityFrameworkQueryableExtensions)
-                .GetTypeInfo().GetDeclaredMethod(nameof(WithTag));
+                .GetTypeInfo().GetDeclaredMethod(nameof(TagWith));
 
         /// <summary>
         ///     Adds a tag to the collection of tags associated with an EF LINQ query. Tags are query annotations
         ///     that can provide contextual tracing information at different points in the query pipeline.
         /// </summary>
-        /// <typeparam name="TEntity"> The type of entity being queried. </typeparam>
+        /// <typeparam name="T"> The type of entity being queried. </typeparam>
         /// <param name="source"> The source query. </param>
         /// <param name="tag"> The tag. </param>
         /// <returns>
         ///     A new query annotated with the given tag.
         /// </returns>
-        public static IQueryable<TEntity> WithTag<TEntity>(
-            [NotNull] this IQueryable<TEntity> source, [NotNull] [NotParameterized] string tag)
-            where TEntity : class
+        public static IQueryable<T> TagWith<T>(
+            [NotNull] this IQueryable<T> source, [NotNull] [NotParameterized] string tag)
         {
             Check.NotNull(source, nameof(source));
             Check.NotEmpty(tag, nameof(tag));
 
             return
                 source.Provider is EntityQueryProvider
-                    ? source.Provider.CreateQuery<TEntity>(
+                    ? source.Provider.CreateQuery<T>(
                         Expression.Call(
                             instance: null,
-                            method: WithTagMethodInfo.MakeGenericMethod(typeof(TEntity)),
+                            method: TagWithMethodInfo.MakeGenericMethod(typeof(T)),
                             arg0: source.Expression,
                             arg1: Expression.Constant(tag)))
                     : source;
@@ -2840,6 +2839,182 @@ namespace Microsoft.EntityFrameworkCore
             Check.NotNull(comparer, nameof(comparer));
 
             return source.AsAsyncEnumerable().ToDictionary(keySelector, elementSelector, comparer, cancellationToken);
+        }
+
+        #endregion
+
+        #region ToLookup
+
+        /// <summary>
+        ///     Creates a <see cref="ILookup{TKey, TValue}" /> from an <see cref="IQueryable{T}" /> by enumerating it
+        ///     asynchronously
+        ///     according to a specified key selector function.
+        /// </summary>
+        /// <remarks>
+        ///     Multiple active operations on the same context instance are not supported.  Use 'await' to ensure
+        ///     that any asynchronous operations have completed before calling another method on this context.
+        /// </remarks>
+        /// <typeparam name="TSource">
+        ///     The type of the elements of <paramref name="source" />.
+        /// </typeparam>
+        /// <typeparam name="TKey">
+        ///     The type of the key returned by <paramref name="keySelector" /> .
+        /// </typeparam>
+        /// <param name="source">
+        ///     An <see cref="IQueryable{T}" /> to create a <see cref="ILookup{TKey, TValue}" /> from.
+        /// </param>
+        /// <param name="keySelector"> A function to extract a key from each element. </param>
+        /// <param name="cancellationToken">
+        ///     A <see cref="CancellationToken" /> to observe while waiting for the task to complete.
+        /// </param>
+        /// <returns>
+        ///     A task that represents the asynchronous operation.
+        ///     The task result contains a <see cref="ILookup{TKey, TSource}" /> that contains selected keys and values.
+        /// </returns>
+        public static Task<ILookup<TKey, TSource>> ToLookupAsync<TSource, TKey>(
+            [NotNull] this IQueryable<TSource> source,
+            [NotNull] Func<TSource, TKey> keySelector,
+            CancellationToken cancellationToken = default)
+        {
+            Check.NotNull(source, nameof(source));
+            Check.NotNull(keySelector, nameof(keySelector));
+
+            return source.AsAsyncEnumerable().ToLookup(keySelector, cancellationToken);
+        }
+
+        /// <summary>
+        ///     Creates a <see cref="ILookup{TKey, TValue}" /> from an <see cref="IQueryable{T}" /> by enumerating it
+        ///     asynchronously
+        ///     according to a specified key selector function and a comparer.
+        /// </summary>
+        /// <remarks>
+        ///     Multiple active operations on the same context instance are not supported.  Use 'await' to ensure
+        ///     that any asynchronous operations have completed before calling another method on this context.
+        /// </remarks>
+        /// <typeparam name="TSource">
+        ///     The type of the elements of <paramref name="source" />.
+        /// </typeparam>
+        /// <typeparam name="TKey">
+        ///     The type of the key returned by <paramref name="keySelector" /> .
+        /// </typeparam>
+        /// <param name="source">
+        ///     An <see cref="IQueryable{T}" /> to create a <see cref="ILookup{TKey, TValue}" /> from.
+        /// </param>
+        /// <param name="keySelector"> A function to extract a key from each element. </param>
+        /// <param name="comparer">
+        ///     An <see cref="IEqualityComparer{TKey}" /> to compare keys.
+        /// </param>
+        /// <param name="cancellationToken">
+        ///     A <see cref="CancellationToken" /> to observe while waiting for the task to complete.
+        /// </param>
+        /// <returns>
+        ///     A task that represents the asynchronous operation.
+        ///     The task result contains a <see cref="ILookup{TKey, TSource}" /> that contains selected keys and values.
+        /// </returns>
+        public static Task<ILookup<TKey, TSource>> ToLookupAsync<TSource, TKey>(
+            [NotNull] this IQueryable<TSource> source,
+            [NotNull] Func<TSource, TKey> keySelector,
+            [NotNull] IEqualityComparer<TKey> comparer,
+            CancellationToken cancellationToken = default)
+        {
+            Check.NotNull(source, nameof(source));
+            Check.NotNull(keySelector, nameof(keySelector));
+            Check.NotNull(comparer, nameof(comparer));
+
+            return source.AsAsyncEnumerable().ToLookup(keySelector, comparer, cancellationToken);
+        }
+
+        /// <summary>
+        ///     Creates a <see cref="ILookup{TKey, TValue}" /> from an <see cref="IQueryable{T}" /> by enumerating it
+        ///     asynchronously
+        ///     according to a specified key selector and an element selector function.
+        /// </summary>
+        /// <remarks>
+        ///     Multiple active operations on the same context instance are not supported.  Use 'await' to ensure
+        ///     that any asynchronous operations have completed before calling another method on this context.
+        /// </remarks>
+        /// <typeparam name="TSource">
+        ///     The type of the elements of <paramref name="source" />.
+        /// </typeparam>
+        /// <typeparam name="TKey">
+        ///     The type of the key returned by <paramref name="keySelector" /> .
+        /// </typeparam>
+        /// <typeparam name="TElement">
+        ///     The type of the value returned by <paramref name="elementSelector" />.
+        /// </typeparam>
+        /// <param name="source">
+        ///     An <see cref="IQueryable{T}" /> to create a <see cref="ILookup{TKey, TValue}" /> from.
+        /// </param>
+        /// <param name="keySelector"> A function to extract a key from each element. </param>
+        /// <param name="elementSelector"> A transform function to produce a result element value from each element. </param>
+        /// <param name="cancellationToken">
+        ///     A <see cref="CancellationToken" /> to observe while waiting for the task to complete.
+        /// </param>
+        /// <returns>
+        ///     A task that represents the asynchronous operation.
+        ///     The task result contains a <see cref="ILookup{TKey, TElement}" /> that contains values of type
+        ///     <typeparamref name="TElement" /> selected from the input sequence.
+        /// </returns>
+        public static Task<ILookup<TKey, TElement>> ToLookupAsync<TSource, TKey, TElement>(
+            [NotNull] this IQueryable<TSource> source,
+            [NotNull] Func<TSource, TKey> keySelector,
+            [NotNull] Func<TSource, TElement> elementSelector,
+            CancellationToken cancellationToken = default)
+        {
+            Check.NotNull(source, nameof(source));
+            Check.NotNull(keySelector, nameof(keySelector));
+            Check.NotNull(elementSelector, nameof(elementSelector));
+
+            return source.AsAsyncEnumerable().ToLookup(keySelector, elementSelector, cancellationToken);
+        }
+
+        /// <summary>
+        ///     Creates a <see cref="ILookup{TKey, TValue}" /> from an <see cref="IQueryable{T}" /> by enumerating it
+        ///     asynchronously
+        ///     according to a specified key selector function, a comparer, and an element selector function.
+        /// </summary>
+        /// <remarks>
+        ///     Multiple active operations on the same context instance are not supported.  Use 'await' to ensure
+        ///     that any asynchronous operations have completed before calling another method on this context.
+        /// </remarks>
+        /// <typeparam name="TSource">
+        ///     The type of the elements of <paramref name="source" />.
+        /// </typeparam>
+        /// <typeparam name="TKey">
+        ///     The type of the key returned by <paramref name="keySelector" /> .
+        /// </typeparam>
+        /// <typeparam name="TElement">
+        ///     The type of the value returned by <paramref name="elementSelector" />.
+        /// </typeparam>
+        /// <param name="source">
+        ///     An <see cref="IQueryable{T}" /> to create a <see cref="ILookup{TKey, TValue}" /> from.
+        /// </param>
+        /// <param name="keySelector"> A function to extract a key from each element. </param>
+        /// <param name="elementSelector"> A transform function to produce a result element value from each element. </param>
+        /// <param name="comparer">
+        ///     An <see cref="IEqualityComparer{TKey}" /> to compare keys.
+        /// </param>
+        /// <param name="cancellationToken">
+        ///     A <see cref="CancellationToken" /> to observe while waiting for the task to complete.
+        /// </param>
+        /// <returns>
+        ///     A task that represents the asynchronous operation.
+        ///     The task result contains a <see cref="ILookup{TKey, TElement}" /> that contains values of type
+        ///     <typeparamref name="TElement" /> selected from the input sequence.
+        /// </returns>
+        public static Task<ILookup<TKey, TElement>> ToLookupAsync<TSource, TKey, TElement>(
+            [NotNull] this IQueryable<TSource> source,
+            [NotNull] Func<TSource, TKey> keySelector,
+            [NotNull] Func<TSource, TElement> elementSelector,
+            [NotNull] IEqualityComparer<TKey> comparer,
+            CancellationToken cancellationToken = default)
+        {
+            Check.NotNull(source, nameof(source));
+            Check.NotNull(keySelector, nameof(keySelector));
+            Check.NotNull(elementSelector, nameof(elementSelector));
+            Check.NotNull(comparer, nameof(comparer));
+
+            return source.AsAsyncEnumerable().ToLookup(keySelector, elementSelector, comparer, cancellationToken);
         }
 
         #endregion

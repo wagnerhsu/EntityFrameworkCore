@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -77,9 +78,40 @@ namespace Microsoft.EntityFrameworkCore
             Check.NotNull(indexBuilder, nameof(indexBuilder));
             Check.NotNull(includeExpression, nameof(includeExpression));
 
-            ForSqlServerInclude(indexBuilder, includeExpression.GetPropertyAccessList().Select(p => p.Name).ToArray());
+            ForSqlServerInclude(indexBuilder, includeExpression.GetPropertyAccessList().Select(GetSimpleMemberName).ToArray());
 
             return indexBuilder;
+        }
+
+        /// <summary>
+        ///     Configures index include properties when targeting SQL Server.
+        /// </summary>
+        /// <param name="indexBuilder"> The builder for the index being configured. </param>
+        /// <param name="online"> A value indicating whether the index is created with online option. </param>
+        /// <returns> A builder to further configure the index. </returns>
+        public static IndexBuilder ForSqlServerIsOnline([NotNull] this IndexBuilder indexBuilder, bool online = true)
+        {
+            Check.NotNull(indexBuilder, nameof(indexBuilder));
+
+            indexBuilder.Metadata.SqlServer().IsOnline = online;
+
+            return indexBuilder;
+        }
+
+        /// <summary>
+        ///     Configures whether the index is created with online option when targeting SQL Server.
+        /// </summary>
+        /// <param name="indexBuilder"> The builder for the index being configured. </param>
+        /// <param name="online"> A value indicating whether the index is created with online option. </param>
+        /// <returns> A builder to further configure the index. </returns>
+        public static IndexBuilder<TEntity> ForSqlServerIsOnline<TEntity>([NotNull] this IndexBuilder<TEntity> indexBuilder, bool online = true)
+            => (IndexBuilder<TEntity>)ForSqlServerIsOnline((IndexBuilder)indexBuilder, online);
+
+        private static string GetSimpleMemberName(MemberInfo member)
+        {
+            var name = member.Name;
+            var index = name.LastIndexOf('.');
+            return index >= 0 ? name.Substring(index + 1) : name;
         }
     }
 }

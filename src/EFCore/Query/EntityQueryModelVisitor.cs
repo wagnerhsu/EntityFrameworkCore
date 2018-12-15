@@ -4,12 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Extensions.Internal;
@@ -53,6 +52,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         private readonly INavigationRewritingExpressionVisitorFactory _navigationRewritingExpressionVisitorFactory;
         private readonly IQuerySourceTracingExpressionVisitorFactory _querySourceTracingExpressionVisitorFactory;
         private readonly IEntityResultFindingExpressionVisitorFactory _entityResultFindingExpressionVisitorFactory;
+        private readonly IEagerLoadingExpressionVisitorFactory _eagerLoadingExpressionVisitorFactory;
         private readonly ITaskBlockingExpressionVisitor _taskBlockingExpressionVisitor;
         private readonly IMemberAccessBindingExpressionVisitorFactory _memberAccessBindingExpressionVisitorFactory;
         private readonly IProjectionExpressionVisitorFactory _projectionExpressionVisitorFactory;
@@ -90,6 +90,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             _navigationRewritingExpressionVisitorFactory = dependencies.NavigationRewritingExpressionVisitorFactory;
             _querySourceTracingExpressionVisitorFactory = dependencies.QuerySourceTracingExpressionVisitorFactory;
             _entityResultFindingExpressionVisitorFactory = dependencies.EntityResultFindingExpressionVisitorFactory;
+            _eagerLoadingExpressionVisitorFactory = dependencies.EagerLoadingExpressionVisitorFactory;
             _taskBlockingExpressionVisitor = dependencies.TaskBlockingExpressionVisitor;
             _memberAccessBindingExpressionVisitorFactory = dependencies.MemberAccessBindingExpressionVisitorFactory;
             _projectionExpressionVisitorFactory = dependencies.ProjectionExpressionVisitorFactory;
@@ -309,13 +310,12 @@ namespace Microsoft.EntityFrameworkCore.Query
 
             ExtractQueryAnnotations(queryModel);
 
-            new EagerLoadingExpressionVisitor(_queryCompilationContext, _querySourceTracingExpressionVisitorFactory)
-                .VisitQueryModel(queryModel);
-
             // First pass of optimizations
 
             _queryOptimizer.Optimize(QueryCompilationContext, queryModel);
-
+            var eagerLoadingExpressionVisitor = _eagerLoadingExpressionVisitorFactory
+                .Create(_queryCompilationContext, _querySourceTracingExpressionVisitorFactory);
+            eagerLoadingExpressionVisitor.VisitQueryModel(queryModel);
             new NondeterministicResultCheckingVisitor(QueryCompilationContext.Logger, this).VisitQueryModel(queryModel);
 
             OnBeforeNavigationRewrite(queryModel);
@@ -323,7 +323,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             // Rewrite includes/navigations
 
             var includeCompiler = new IncludeCompiler(QueryCompilationContext, _querySourceTracingExpressionVisitorFactory);
-            includeCompiler.CompileIncludes(queryModel, TrackResults(queryModel), asyncQuery, shouldThrow: false);
+            includeCompiler.CompileIncludes(queryModel, IsTrackingQuery(queryModel), asyncQuery, shouldThrow: false);
 
             queryModel.TransformExpressions(new CollectionNavigationSubqueryInjector(this).Visit);
             queryModel.TransformExpressions(new CollectionNavigationSetOperatorSubqueryInjector(this).Visit);
@@ -331,7 +331,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             var navigationRewritingExpressionVisitor = _navigationRewritingExpressionVisitorFactory.Create(this);
             navigationRewritingExpressionVisitor.InjectSubqueryToCollectionsInProjection(queryModel);
 
-            var correlatedCollectionFinder = new CorrelatedCollectionFindingExpressionVisitor(this, TrackResults(queryModel));
+            var correlatedCollectionFinder = new CorrelatedCollectionFindingExpressionVisitor(this, IsTrackingQuery(queryModel));
 
             if (!queryModel.ResultOperators.Any(r => r is GroupResultOperator))
             {
@@ -340,7 +340,7 @@ namespace Microsoft.EntityFrameworkCore.Query
 
             navigationRewritingExpressionVisitor.Rewrite(queryModel, parentQueryModel: null);
 
-            includeCompiler.CompileIncludes(queryModel, TrackResults(queryModel), asyncQuery, shouldThrow: true);
+            includeCompiler.CompileIncludes(queryModel, IsTrackingQuery(queryModel), asyncQuery, shouldThrow: true);
 
             navigationRewritingExpressionVisitor.Rewrite(queryModel, parentQueryModel: null);
 
@@ -374,89 +374,6 @@ namespace Microsoft.EntityFrameworkCore.Query
         public virtual bool ShouldApplyDefiningQuery(
             [NotNull] IEntityType entityType, [NotNull] IQuerySource querySource)
             => true;
-
-        private class EagerLoadingExpressionVisitor : QueryModelVisitorBase
-        {
-            private readonly QueryCompilationContext _queryCompilationContext;
-            private readonly QuerySourceTracingExpressionVisitor _querySourceTracingExpressionVisitor;
-
-            public EagerLoadingExpressionVisitor(
-                QueryCompilationContext queryCompilationContext,
-                IQuerySourceTracingExpressionVisitorFactory querySourceTracingExpressionVisitorFactory)
-            {
-                _queryCompilationContext = queryCompilationContext;
-
-                _querySourceTracingExpressionVisitor = querySourceTracingExpressionVisitorFactory.Create();
-            }
-
-            public override void VisitMainFromClause(MainFromClause fromClause, QueryModel queryModel)
-            {
-                ApplyIncludesForOwnedNavigations(new QuerySourceReferenceExpression(fromClause), queryModel);
-
-                base.VisitMainFromClause(fromClause, queryModel);
-            }
-
-            protected override void VisitBodyClauses(ObservableCollection<IBodyClause> bodyClauses, QueryModel queryModel)
-            {
-                foreach (var querySource in bodyClauses.OfType<IQuerySource>())
-                {
-                    ApplyIncludesForOwnedNavigations(new QuerySourceReferenceExpression(querySource), queryModel);
-                }
-
-                base.VisitBodyClauses(bodyClauses, queryModel);
-            }
-
-            private void ApplyIncludesForOwnedNavigations(QuerySourceReferenceExpression querySourceReferenceExpression, QueryModel queryModel)
-            {
-                if (_querySourceTracingExpressionVisitor
-                        .FindResultQuerySourceReferenceExpression(
-                            queryModel.SelectClause.Selector,
-                            querySourceReferenceExpression.ReferencedQuerySource) != null)
-                {
-                    var entityType = _queryCompilationContext.Model.FindEntityType(querySourceReferenceExpression.Type);
-
-                    if (entityType != null)
-                    {
-                        var stack = new Stack<INavigation>();
-
-                        WalkNavigations(querySourceReferenceExpression, entityType, stack);
-                    }
-                }
-            }
-
-            private void WalkNavigations(Expression querySourceReferenceExpression, IEntityType entityType, Stack<INavigation> stack)
-            {
-                var outboundNavigations
-                    = entityType.GetNavigations()
-                        .Concat(entityType.GetDerivedTypes().SelectMany(et => et.GetDeclaredNavigations()))
-                        .Where(n => n.IsEagerLoaded)
-                        .ToList();
-
-                if (outboundNavigations.Count == 0
-                    && stack.Count > 0)
-                {
-                    _queryCompilationContext.AddAnnotations(
-                        new[]
-                        {
-                            new IncludeResultOperator(
-                                stack.Reverse().ToArray(),
-                                querySourceReferenceExpression,
-                                implicitLoad: true)
-                        });
-                }
-                else
-                {
-                    foreach (var navigation in outboundNavigations)
-                    {
-                        stack.Push(navigation);
-
-                        WalkNavigations(querySourceReferenceExpression, navigation.GetTargetType(), stack);
-
-                        stack.Pop();
-                    }
-                }
-            }
-        }
 
         private class NondeterministicResultCheckingVisitor : QueryModelVisitorBase
         {
@@ -666,7 +583,7 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
             Check.NotNull(queryModel, nameof(queryModel));
 
-            if (!TrackResults(queryModel))
+            if (!IsTrackingQuery(queryModel))
             {
                 return;
             }
@@ -690,8 +607,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 else
                 {
                     var subqueryExpression
-                        = (queryModel.SelectClause.Selector
-                            .TryGetReferencedQuerySource() as MainFromClause)?.FromExpression as SubQueryExpression;
+                        = (outputExpression.TryGetReferencedQuerySource() as MainFromClause)?.FromExpression as SubQueryExpression;
 
                     var nestedGroupResultOperator
                         = subqueryExpression?.QueryModel?.ResultOperators
@@ -710,7 +626,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                     .Create(QueryCompilationContext)
                     .FindEntitiesInResult(outputExpression);
 
-            if (entityTrackingInfos.Any())
+            if (entityTrackingInfos.Count > 0)
             {
                 MethodInfo trackingMethod;
 
@@ -774,7 +690,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             }
         }
 
-        private bool TrackResults(QueryModel queryModel)
+        private bool IsTrackingQuery(QueryModel queryModel)
         {
             // TODO: Unify with QCC
 
@@ -786,8 +702,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             return !_modelExpressionApplyingExpressionVisitor.IsViewTypeQuery
                    && !(queryModel.GetOutputDataInfo() is StreamedScalarValueInfo)
                    && (QueryCompilationContext.TrackQueryResults || lastTrackingModifier != null)
-                   && (lastTrackingModifier == null
-                       || lastTrackingModifier.IsTracking);
+                   && (lastTrackingModifier?.IsTracking != false);
         }
 
         private static readonly MethodInfo _getEntityAccessors
@@ -1643,12 +1558,12 @@ namespace Microsoft.EntityFrameworkCore.Query
         }
 
         /// <summary>
-        ///     Binds a method call to a CLR or shadow property access.
+        ///     Binds a method call to a CLR, shadow or indexed property access.
         /// </summary>
         /// <param name="methodCallExpression"> The method call expression. </param>
         /// <param name="targetMethodCallExpression"> The target method call expression. </param>
         /// <returns>
-        ///     A value buffer access expression.
+        ///     A property access expression.
         /// </returns>
         public virtual Expression BindMethodCallToEntity(
             [NotNull] MethodCallExpression methodCallExpression,
@@ -1656,10 +1571,18 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
             Check.NotNull(methodCallExpression, nameof(methodCallExpression));
 
-            return BindMethodCallExpression<Expression>(
+            return BindMethodCallExpression(
                 methodCallExpression,
-                (property, _) =>
+                (Func<IPropertyBase, IQuerySource, Expression>)((property, _) =>
                 {
+                    if (targetMethodCallExpression.Method.IsEFIndexer())
+                    {
+                        return Expression.Call(
+                            _getValueFromEntityMethodInfo.MakeGenericMethod(property.ClrType),
+                            Expression.Constant(property.GetGetter()),
+                            targetMethodCallExpression.Object);
+                    }
+
                     var propertyType = targetMethodCallExpression.Method.GetGenericArguments()[0];
 
                     if (targetMethodCallExpression.Arguments[0] is ConstantExpression maybeConstantExpression)
@@ -1669,17 +1592,12 @@ namespace Microsoft.EntityFrameworkCore.Query
                             propertyType);
                     }
 
-                    if (targetMethodCallExpression.Arguments[0] is MethodCallExpression maybeMethodCallExpression
-                        && maybeMethodCallExpression.Method.IsGenericMethod
-                        && maybeMethodCallExpression.Method.GetGenericMethodDefinition()
-                            .Equals(DefaultQueryExpressionVisitor.GetParameterValueMethodInfo)
-                        || targetMethodCallExpression.Arguments[0].NodeType == ExpressionType.Parameter
+                    var expression = targetMethodCallExpression.Arguments[0];
+                    if (HasParameterRoot(expression)
                         && !property.IsShadowProperty)
                     {
-                        // The target is a parameter, try and get the value from it directly.
                         return Expression.Call(
-                            _getValueFromEntityMethodInfo
-                                .MakeGenericMethod(propertyType),
+                            _getValueFromEntityMethodInfo.MakeGenericMethod(propertyType),
                             Expression.Constant(property.GetGetter()),
                             targetMethodCallExpression.Arguments[0]);
                     }
@@ -1689,7 +1607,32 @@ namespace Microsoft.EntityFrameworkCore.Query
                         QueryContextParameter,
                         targetMethodCallExpression.Arguments[0],
                         Expression.Constant(property));
-                });
+                }));
+        }
+
+        private static bool HasParameterRoot(Expression expression)
+        {
+            if (expression.NodeType == ExpressionType.Parameter)
+            {
+                return true;
+            }
+
+            expression = expression.RemoveNullConditional();
+            if (expression is MethodCallExpression methodCallExpression)
+            {
+                if (methodCallExpression.Method.IsGenericMethod
+                    && methodCallExpression.Method.GetGenericMethodDefinition()
+                        .Equals(DefaultQueryExpressionVisitor.GetParameterValueMethodInfo))
+                {
+                    return true;
+                }
+            }
+            else if (expression is MemberExpression memberExpression)
+            {
+                return HasParameterRoot(memberExpression.Expression);
+            }
+
+            return false;
         }
 
         private static readonly MethodInfo _getValueMethodInfo
@@ -1801,7 +1744,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 methodCallExpression, querySource,
                 (ps, qs) =>
                 {
-                    var property = ps.Count == 1 ? ps[0] as IProperty : null;
+                    var property = ps.Count > 0 ? ps[ps.Count - 1] as IProperty : null;
 
                     return property != null
                         ? methodCallBinder(property, qs)

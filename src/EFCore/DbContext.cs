@@ -53,7 +53,8 @@ namespace Microsoft.EntityFrameworkCore
         IDbQueryCache,
         IDbContextPoolable
     {
-        private readonly IDictionary<Type, object> _sets = new Dictionary<Type, object>();
+        private IDictionary<Type, object> _sets;
+        private IDictionary<Type, object> _queries;
         private readonly DbContextOptions _options;
 
         private IDbContextServices _contextServices;
@@ -200,6 +201,11 @@ namespace Microsoft.EntityFrameworkCore
         {
             CheckDisposed();
 
+            if (_sets == null)
+            {
+                _sets = new Dictionary<Type, object>();
+            }
+
             if (!_sets.TryGetValue(type, out var set))
             {
                 set = source.Create(this, type);
@@ -217,13 +223,18 @@ namespace Microsoft.EntityFrameworkCore
         {
             CheckDisposed();
 
-            if (!_sets.TryGetValue(type, out var set))
+            if (_queries == null)
             {
-                set = source.CreateQuery(this, type);
-                _sets[type] = set;
+                _queries = new Dictionary<Type, object>();
             }
 
-            return set;
+            if (!_queries.TryGetValue(type, out var query))
+            {
+                query = source.CreateQuery(this, type);
+                _queries[type] = query;
+            }
+
+            return query;
         }
 
         /// <summary>
@@ -563,7 +574,8 @@ namespace Microsoft.EntityFrameworkCore
             => new DbContextPoolConfigurationSnapshot(
                 _changeTracker?.AutoDetectChangesEnabled,
                 _changeTracker?.QueryTrackingBehavior,
-                _database?.AutoTransactionsEnabled);
+                _database?.AutoTransactionsEnabled,
+                _changeTracker?.LazyLoadingEnabled);
 
         void IDbContextPoolable.Resurrect(DbContextPoolConfigurationSnapshot configurationSnapshot)
         {
@@ -571,17 +583,23 @@ namespace Microsoft.EntityFrameworkCore
 
             if (configurationSnapshot.AutoDetectChangesEnabled != null)
             {
+                Debug.Assert(configurationSnapshot.QueryTrackingBehavior.HasValue);
+                Debug.Assert(configurationSnapshot.LazyLoadingEnabled.HasValue);
+
                 ChangeTracker.AutoDetectChangesEnabled = configurationSnapshot.AutoDetectChangesEnabled.Value;
-            }
-
-            if (configurationSnapshot.QueryTrackingBehavior != null)
-            {
                 ChangeTracker.QueryTrackingBehavior = configurationSnapshot.QueryTrackingBehavior.Value;
+                ChangeTracker.LazyLoadingEnabled = configurationSnapshot.LazyLoadingEnabled.Value;
+            }
+            else
+            {
+                ((IResettableService)_changeTracker)?.ResetState();
             }
 
-            if (configurationSnapshot.AutoTransactionsEnabled != null)
+            if (_database != null)
             {
-                Database.AutoTransactionsEnabled = configurationSnapshot.AutoTransactionsEnabled.Value;
+                _database.AutoTransactionsEnabled
+                    = configurationSnapshot.AutoTransactionsEnabled == null
+                      || configurationSnapshot.AutoTransactionsEnabled.Value;
             }
         }
 
@@ -596,6 +614,28 @@ namespace Microsoft.EntityFrameworkCore
                 foreach (var service in resettableServices)
                 {
                     service.ResetState();
+                }
+            }
+
+            if (_sets != null)
+            {
+                foreach (var set in _sets.Values)
+                {
+                    if (set is IResettableService resettable)
+                    {
+                        resettable.ResetState();
+                    }
+                }
+            }
+
+            if (_queries != null)
+            {
+                foreach (var query in _queries.Values)
+                {
+                    if (query is IResettableService resettable)
+                    {
+                        resettable.ResetState();
+                    }
                 }
             }
 

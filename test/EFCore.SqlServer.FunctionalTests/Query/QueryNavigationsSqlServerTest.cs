@@ -389,7 +389,7 @@ WHERE ([o.Customer].[City] = N'Seattle') AND (([o.Customer].[Phone] <> N'555 555
 
             AssertSql(
                 @"SELECT (
-    SELECT SUM([od].[Quantity])
+    SELECT SUM(CAST([od].[Quantity] AS int))
     FROM [Order Details] AS [od]
     WHERE [o].[OrderID] = [od].[OrderID]
 ) + (
@@ -821,7 +821,7 @@ FROM [Customers] AS [c]");
             await base.Collection_select_nav_prop_sum_plus_one(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Collection_where_nav_prop_sum(bool isAsync)
@@ -851,13 +851,15 @@ ORDER BY [c].[CustomerID]",
 
 SELECT TOP(1) [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM [Orders] AS [o]
-WHERE @_outer_CustomerID = [o].[CustomerID]",
+WHERE @_outer_CustomerID = [o].[CustomerID]
+ORDER BY [o].[OrderID]",
                 //
                 @"@_outer_CustomerID='ANATR' (Size = 5)
 
 SELECT TOP(1) [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM [Orders] AS [o]
-WHERE @_outer_CustomerID = [o].[CustomerID]");
+WHERE @_outer_CustomerID = [o].[CustomerID]
+ORDER BY [o].[OrderID]");
         }
 
         public override async Task Collection_select_nav_prop_first_or_default_then_nav_prop(bool isAsync)
@@ -1150,7 +1152,7 @@ ORDER BY [od.Order].[CustomerID]");
             await base.Select_anonymous_type_order_by_field_group_by_same_field(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Project_first_or_default_on_empty_collection_of_value_types_returns_proper_default(bool isAsync)

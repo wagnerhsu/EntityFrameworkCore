@@ -30,17 +30,16 @@ Update-Database
 
   <ItemGroup>
     <!-- PowerShell files should be code signed -->
-    <SignedPackageFile Include="tools/EntityFrameworkCore.PowerShell2.psd1" Certificate="$(AssemblySigningCertName)" />
-    <SignedPackageFile Include="tools/EntityFrameworkCore.PowerShell2.psm1" Certificate="$(AssemblySigningCertName)" />
-    <SignedPackageFile Include="tools/EntityFrameworkCore.psd1" Certificate="$(AssemblySigningCertName)" />
-    <SignedPackageFile Include="tools/EntityFrameworkCore.psm1" Certificate="$(AssemblySigningCertName)" />
-    <SignedPackageFile Include="tools/init.ps1" Certificate="$(AssemblySigningCertName)" />
-    <SignedPackageFile Include="tools/install.ps1" Certificate="$(AssemblySigningCertName)" />
+    <SignedPackageFile Include="EntityFrameworkCore.PowerShell2.psd1" Certificate="$(PowerShellSigningCertName)" />
+    <SignedPackageFile Include="EntityFrameworkCore.PowerShell2.psm1" Certificate="$(PowerShellSigningCertName)" />
+    <SignedPackageFile Include="EntityFrameworkCore.psd1" Certificate="$(PowerShellSigningCertName)" />
+    <SignedPackageFile Include="EntityFrameworkCore.psm1" Certificate="$(PowerShellSigningCertName)" />
+    <SignedPackageFile Include="init.ps1" Certificate="$(PowerShellSigningCertName)" />
+    <SignedPackageFile Include="install.ps1" Certificate="$(PowerShellSigningCertName)" />
 
     <!-- Additional assemblies to be code signed -->
-    <SignedPackageFile Include="tools/net461/any/ef.exe" Certificate="$(AssemblySigningCertName)" />
-    <SignedPackageFile Include="tools/net461/win-x86/ef.exe" Certificate="$(AssemblySigningCertName)" />
-    <SignedPackageFile Include="tools/netcoreapp2.0/any/ef.dll" Certificate="$(AssemblySigningCertName)" />
+    <SignedPackageFile Include="ef.exe" Certificate="$(AssemblySigningCertName)" />
+    <SignedPackageFile Include="ef.dll" Certificate="$(AssemblySigningCertName)" />
   </ItemGroup>
 
   <ItemGroup>

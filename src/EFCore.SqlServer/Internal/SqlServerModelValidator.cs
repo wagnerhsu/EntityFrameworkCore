@@ -118,7 +118,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
             foreach (var index in model.GetEntityTypes().SelectMany(t => t.GetDeclaredIndexes()))
             {
                 var includeProperties = index.SqlServer().IncludeProperties;
-                if (includeProperties != null && includeProperties.Count > 0)
+                if (includeProperties?.Count > 0)
                 {
                     var notFound = includeProperties
                         .Where(i => index.DeclaringEntityType.FindProperty(i) == null)
@@ -228,6 +228,42 @@ namespace Microsoft.EntityFrameworkCore.Internal
                 var sb = new StringBuilder()
                     .AppendJoin(identityColumns.Select(p => "'" + p.DeclaringEntityType.DisplayName() + "." + p.Name + "'"));
                 throw new InvalidOperationException(SqlServerStrings.MultipleIdentityColumns(sb, tableName));
+            }
+        }
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        protected override void ValidateSharedKeysCompatibility(
+            IReadOnlyList<IEntityType> mappedTypes, string tableName)
+        {
+            base.ValidateSharedKeysCompatibility(mappedTypes, tableName);
+
+            var keyMappings = new Dictionary<string, IKey>();
+
+            foreach (var key in mappedTypes.SelectMany(et => et.GetDeclaredKeys()))
+            {
+                var keyName = key.Relational().Name;
+
+                if (!keyMappings.TryGetValue(keyName, out var duplicateKey))
+                {
+                    keyMappings[keyName] = key;
+                    continue;
+                }
+
+                if (key.SqlServer().IsClustered
+                     != duplicateKey.SqlServer().IsClustered)
+                {
+                    throw new InvalidOperationException(
+                        SqlServerStrings.DuplicateKeyMismatchedClustering(
+                            Property.Format(key.Properties),
+                            key.DeclaringEntityType.DisplayName(),
+                            Property.Format(duplicateKey.Properties),
+                            duplicateKey.DeclaringEntityType.DisplayName(),
+                            tableName,
+                            keyName));
+                }
             }
         }
     }

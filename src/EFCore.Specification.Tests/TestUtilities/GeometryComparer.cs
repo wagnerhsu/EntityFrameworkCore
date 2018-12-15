@@ -16,28 +16,7 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
         }
 
         public bool Equals(IGeometry x, IGeometry y)
-        {
-            if (x == null)
-            {
-                return y == null;
-            }
-            if (x.EqualsTopologically(y))
-            {
-                return true;
-            }
-
-            switch (x.OgcGeometryType)
-            {
-                case OgcGeometryType.Point:
-                    return Math.Round(x.Distance(y), 1) == 0;
-
-                case OgcGeometryType.Polygon:
-                case OgcGeometryType.MultiPolygon:
-                    return Math.Round(x.SymmetricDifference(y).Area, 1) == 0;
-            }
-
-            return false;
-        }
+            => x == null ? y == null : x.Normalized().EqualsExact(y.Normalized(), tolerance: 0.1);
 
         public int GetHashCode(IGeometry obj)
             => throw new NotImplementedException();

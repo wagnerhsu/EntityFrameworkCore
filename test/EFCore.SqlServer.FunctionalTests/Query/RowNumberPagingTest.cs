@@ -94,7 +94,7 @@ WHERE ([t].[__RowNumber__] > @__p_0) AND ([t].[__RowNumber__] <= (@__p_0 + @__p_
             await base.Join_Customers_Orders_Skip_Take_followed_by_constant_projection(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Join_Customers_Orders_Projection_With_String_Concat_Skip_Take(bool isAsync)
@@ -241,11 +241,9 @@ WHERE CHARINDEX(N'M', [c].[ContactName]) > 0");
                 entryCount: 34);
 
             AssertSql(
-                @"@__LocalMethod1_0='M' (Size = 4000)
-
-SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE (CHARINDEX(@__LocalMethod1_0, [c].[ContactName]) > 0) OR (@__LocalMethod1_0 = N'')");
+WHERE CHARINDEX(N'M', [c].[ContactName]) > 0");
         }
 
         public override async Task OrderBy_skip_take(bool isAsync)

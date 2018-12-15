@@ -36,6 +36,20 @@ FROM [Customers] AS [e]
 WHERE [e].[CustomerID] = N'ALFKI'");
         }
 
+        public override void Can_convert_manually_build_expression_with_default()
+        {
+            base.Can_convert_manually_build_expression_with_default();
+
+            AssertSql(
+                @"SELECT COUNT(*)
+FROM [Customers] AS [c]
+WHERE [c].[CustomerID] IS NOT NULL",
+                //
+                @"SELECT COUNT(*)
+FROM [Customers] AS [c]
+WHERE [c].[CustomerID] IS NOT NULL");
+        }
+
         public override void Lifting_when_subquery_nested_order_by_anonymous()
         {
             base.Lifting_when_subquery_nested_order_by_anonymous();
@@ -119,16 +133,16 @@ FROM [Orders] AS [c1_Orders]");
             return getter();
         }
 
-        public override async Task Local_array(bool isAsync)
+        public override async Task Local_dictionary(bool isAsync)
         {
-            await base.Local_array(isAsync);
+            await base.Local_dictionary(isAsync);
 
             AssertSql(
-                @"@__get_Item_0='ALFKI' (Size = 5)
+                @"@__p_0='ALFKI' (Size = 5)
 
 SELECT TOP(2) [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
-WHERE [c].[CustomerID] = @__get_Item_0");
+WHERE [c].[CustomerID] = @__p_0");
         }
 
         public override void Method_with_constant_queryable_arg()
@@ -172,7 +186,7 @@ WHERE [c].[CustomerID] = @__local_0_CustomerID");
             await base.Join_with_entity_equality_local_on_both_sources(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Entity_equality_local_inline(bool isAsync)
@@ -235,7 +249,7 @@ LEFT JOIN (
             await base.Join_with_default_if_empty_on_both_sources(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Default_if_empty_top_level_followed_by_projecting_constant(bool isAsync)
@@ -243,7 +257,7 @@ LEFT JOIN (
             await base.Default_if_empty_top_level_followed_by_projecting_constant(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Default_if_empty_top_level_positive(bool isAsync)
@@ -272,13 +286,12 @@ FROM [Employees] AS [c]
 WHERE [c].[EmployeeID] = -1");
         }
 
-
         public override async Task Default_if_empty_top_level_arg_followed_by_projecting_constant(bool isAsync)
         {
             await base.Default_if_empty_top_level_arg_followed_by_projecting_constant(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Default_if_empty_top_level_projection(bool isAsync)
@@ -633,6 +646,7 @@ SELECT [t].[OrderID], [t].[CustomerID], [t].[EmployeeID], [t].[OrderDate]
 FROM (
     SELECT TOP(@__p_0) [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
     FROM [Orders] AS [o]
+    ORDER BY [o].[OrderID]
 ) AS [t]
 ORDER BY [t].[OrderID]",
                 //
@@ -867,6 +881,20 @@ FROM [Customers] AS [c]
 ORDER BY (SELECT 1)
 OFFSET @__p_0 ROWS");
         }
+        
+        [SqlServerCondition(SqlServerCondition.SupportsOffset)]
+        public override async Task Skip_orderby_const(bool isAsync)
+        {
+            await base.Skip_orderby_const(isAsync);
+
+            AssertSql(
+                @"@__p_0='5'
+
+SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+FROM [Customers] AS [c]
+ORDER BY (SELECT 1)
+OFFSET @__p_0 ROWS");
+        }
 
         [SqlServerCondition(SqlServerCondition.SupportsOffset)]
         public override async Task Skip_Take(bool isAsync)
@@ -904,7 +932,7 @@ OFFSET @__p_0 ROWS FETCH NEXT @__p_1 ROWS ONLY");
             await base.Join_Customers_Orders_Skip_Take_followed_by_constant_projection(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         [SqlServerCondition(SqlServerCondition.SupportsOffset)]
@@ -2062,8 +2090,7 @@ ORDER BY [c].[CustomerID]");
 
             AssertSql(
                 @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
-FROM [Customers] AS [c]
-ORDER BY (SELECT 1)");
+FROM [Customers] AS [c]");
         }
 
         public override async Task OrderBy_integer(bool isAsync)
@@ -2072,8 +2099,7 @@ ORDER BY (SELECT 1)");
 
             AssertSql(
                 @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
-FROM [Customers] AS [c]
-ORDER BY (SELECT 1)");
+FROM [Customers] AS [c]");
         }
 
         public override async Task OrderBy_parameter(bool isAsync)
@@ -2082,8 +2108,7 @@ ORDER BY (SELECT 1)");
 
             AssertSql(
                 @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
-FROM [Customers] AS [c]
-ORDER BY (SELECT 1)");
+FROM [Customers] AS [c]");
         }
 
         public override async Task OrderBy_anon(bool isAsync)
@@ -2437,7 +2462,8 @@ WHERE [o].[CustomerID] = @_outer_CustomerID");
                 @"@__p_0='3'
 
 SELECT TOP(@__p_0) [c].[CustomerID]
-FROM [Customers] AS [c]",
+FROM [Customers] AS [c]
+ORDER BY [c].[CustomerID]",
                 //
                 @"SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM [Orders] AS [o]",
@@ -2519,15 +2545,29 @@ ORDER BY CASE
 END");
         }
 
-        public override async Task OrderBy_conditional_operator_where_condition_null(bool isAsync)
+        public override async Task Null_Coalesce_Short_Circuit(bool isAsync)
         {
-            await base.OrderBy_conditional_operator_where_condition_null(isAsync);
+            await base.Null_Coalesce_Short_Circuit(isAsync);
 
             AssertSql(
-                @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+                @"SELECT [t].[CustomerID], [t].[Address], [t].[City], [t].[CompanyName], [t].[ContactName], [t].[ContactTitle], [t].[Country], [t].[Fax], [t].[Phone], [t].[PostalCode], [t].[Region]
+FROM (
+    SELECT DISTINCT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    FROM [Customers] AS [c]
+) AS [t]");
+        }
+
+        public override async Task OrderBy_conditional_operator_where_condition_false(bool isAsync)
+        {
+            await base.OrderBy_conditional_operator_where_condition_false(isAsync);
+
+            AssertSql(
+                @"@__p_0='False'
+
+SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
 FROM [Customers] AS [c]
 ORDER BY CASE
-    WHEN 0 = 1
+    WHEN @__p_0 = 1
     THEN N'ZZ' ELSE [c].[City]
 END");
         }
@@ -2665,16 +2705,54 @@ FROM [Customers] AS [c]
 ORDER BY COALESCE([c].[Region], N'ZZ')");
         }
 
-        public override async Task DateTime_parse_is_parameterized(bool isAsync)
+        public override async Task DateTime_parse_is_inlined(bool isAsync)
         {
-            await base.DateTime_parse_is_parameterized(isAsync);
+            await base.DateTime_parse_is_inlined(isAsync);
 
             AssertSql(
-                @"@__Parse_0='1998-01-01T12:00:00' (DbType = DateTime)
+                @"SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+FROM [Orders] AS [o]
+WHERE [o].[OrderDate] > '1998-01-01T12:00:00.000'");
+        }
+
+        public override async Task DateTime_parse_is_parameterized_when_from_closure(bool isAsync)
+        {
+            await base.DateTime_parse_is_parameterized_when_from_closure(isAsync);
+
+            AssertSql(
+                @"@__Parse_0='1998-01-01T12:00:00' (Nullable = true) (DbType = DateTime)
 
 SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM [Orders] AS [o]
 WHERE [o].[OrderDate] > @__Parse_0");
+        }
+
+        public override async Task New_DateTime_is_inlined(bool isAsync)
+        {
+            await base.New_DateTime_is_inlined(isAsync);
+
+            AssertSql(
+                @"SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+FROM [Orders] AS [o]
+WHERE [o].[OrderDate] > '1998-01-01T12:00:00.000'");
+        }
+
+        public override async Task New_DateTime_is_parameterized_when_from_closure(bool isAsync)
+        {
+            await base.New_DateTime_is_parameterized_when_from_closure(isAsync);
+
+            AssertSql(
+                @"@__p_0='1998-01-01T12:00:00' (Nullable = true) (DbType = DateTime)
+
+SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+FROM [Orders] AS [o]
+WHERE [o].[OrderDate] > @__p_0",
+                //
+                @"@__p_0='1998-01-01T11:00:00' (Nullable = true) (DbType = DateTime)
+
+SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+FROM [Orders] AS [o]
+WHERE [o].[OrderDate] > @__p_0");
         }
 
         public override void Random_next_is_not_funcletized_1()
@@ -3001,6 +3079,57 @@ FROM [Orders] AS [o]");
         public override async Task Subquery_member_pushdown_does_not_change_original_subquery_model(bool isAsync)
         {
             await base.Subquery_member_pushdown_does_not_change_original_subquery_model(isAsync);
+
+            AssertSql(
+                @"@__p_0='3'
+
+SELECT [t].[CustomerID], [t].[OrderID]
+FROM (
+    SELECT TOP(@__p_0) [o].*
+    FROM [Orders] AS [o]
+    ORDER BY [o].[OrderID]
+) AS [t]",
+                //
+                @"@_outer_CustomerID='VINET' (Size = 5)
+
+SELECT TOP(2) [c0].[City]
+FROM [Customers] AS [c0]
+WHERE [c0].[CustomerID] = @_outer_CustomerID",
+                //
+                @"@_outer_CustomerID='TOMSP' (Size = 5)
+
+SELECT TOP(2) [c0].[City]
+FROM [Customers] AS [c0]
+WHERE [c0].[CustomerID] = @_outer_CustomerID",
+                //
+                @"@_outer_CustomerID='HANAR' (Size = 5)
+
+SELECT TOP(2) [c0].[City]
+FROM [Customers] AS [c0]
+WHERE [c0].[CustomerID] = @_outer_CustomerID",
+                //
+                @"@_outer_CustomerID1='TOMSP' (Size = 5)
+
+SELECT TOP(2) [c2].[City]
+FROM [Customers] AS [c2]
+WHERE [c2].[CustomerID] = @_outer_CustomerID1",
+                //
+                @"@_outer_CustomerID1='VINET' (Size = 5)
+
+SELECT TOP(2) [c2].[City]
+FROM [Customers] AS [c2]
+WHERE [c2].[CustomerID] = @_outer_CustomerID1",
+                //
+                @"@_outer_CustomerID1='HANAR' (Size = 5)
+
+SELECT TOP(2) [c2].[City]
+FROM [Customers] AS [c2]
+WHERE [c2].[CustomerID] = @_outer_CustomerID1");
+        }
+
+        public override async Task Subquery_member_pushdown_does_not_change_original_subquery_model2(bool isAsync)
+        {
+            await base.Subquery_member_pushdown_does_not_change_original_subquery_model2(isAsync);
 
             AssertSql(
                 @"@__p_0='3'
@@ -4504,8 +4633,7 @@ FROM (
 
             AssertSql(
                 @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
-FROM [Customers] AS [c]
-ORDER BY (SELECT 1)");
+FROM [Customers] AS [c]");
         }
 
         public override async Task OrderBy_empty_list_does_not_contains(bool isAsync)
@@ -4514,8 +4642,7 @@ ORDER BY (SELECT 1)");
 
             AssertSql(
                 @"SELECT [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
-FROM [Customers] AS [c]
-ORDER BY (SELECT 1)");
+FROM [Customers] AS [c]");
         }
 
         public override void Manual_expression_tree_typed_null_equality()

@@ -303,7 +303,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                         throw new InvalidOperationException(CoreStrings.OwnedDerivedType(entityType.DisplayName()));
                     }
 
-                    foreach (var referencingFk in entityType.GetReferencingForeignKeys().Where(fk => !fk.IsOwnership))
+                    foreach (var referencingFk in entityType.GetReferencingForeignKeys().Where(fk => !fk.IsOwnership
+                        && !Contains(fk.DeclaringEntityType.FindOwnership(), fk)))
                     {
                         throw new InvalidOperationException(
                             CoreStrings.PrincipalOwnedType(
@@ -318,7 +319,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                                 entityType.DisplayName()));
                     }
 
-                    foreach (var fk in entityType.GetDeclaredForeignKeys().Where(fk => !fk.IsOwnership && fk.PrincipalToDependent != null))
+                    foreach (var fk in entityType.GetDeclaredForeignKeys().Where(fk => !fk.IsOwnership && fk.PrincipalToDependent != null
+                        && !Contains(fk.DeclaringEntityType.FindOwnership(), fk)))
                     {
                         throw new InvalidOperationException(
                             CoreStrings.InverseToOwnedType(
@@ -335,6 +337,11 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             }
         }
 
+        private bool Contains(IForeignKey inheritedFk, IForeignKey derivedFk)
+            => inheritedFk != null
+                && inheritedFk.PrincipalEntityType.IsAssignableFrom(derivedFk.PrincipalEntityType)
+                && PropertyListComparer.Instance.Equals(inheritedFk.Properties, derivedFk.Properties);
+
         /// <summary>
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
@@ -343,13 +350,19 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
         {
             foreach (var entityType in model.GetEntityTypes())
             {
-                if (entityType.BaseType == null)
-                {
-                    continue;
-                }
-
                 foreach (var declaredForeignKey in entityType.GetDeclaredForeignKeys())
                 {
+                    if (declaredForeignKey.PrincipalEntityType == declaredForeignKey.DeclaringEntityType
+                        && PropertyListComparer.Instance.Equals(declaredForeignKey.PrincipalKey.Properties, declaredForeignKey.Properties))
+                    {
+                        Dependencies.ModelLogger.RedundantForeignKeyWarning(declaredForeignKey);
+                    }
+
+                    if (entityType.BaseType == null)
+                    {
+                        continue;
+                    }
+
                     var inheritedKey = declaredForeignKey.Properties.Where(p => p.ValueGenerated != ValueGenerated.Never)
                         .SelectMany(p => p.GetContainingKeys().Where(k => k.DeclaringEntityType != entityType)).FirstOrDefault();
                     if (inheritedKey != null)
@@ -492,12 +505,21 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
 
             foreach (var entityType in model.GetEntityTypes())
             {
-                if (entityType.IsQueryType
-                    && entityType.BaseType != null
-                    && entityType.DefiningQuery != null)
+                if (entityType.IsQueryType)
                 {
-                    throw new InvalidOperationException(
-                        CoreStrings.DerivedQueryTypeDefiningQuery(entityType.DisplayName(), entityType.BaseType.DisplayName()));
+                    if (entityType.BaseType != null
+                        && entityType.DefiningQuery != null)
+                    {
+                        throw new InvalidOperationException(
+                            CoreStrings.DerivedQueryTypeDefiningQuery(entityType.DisplayName(), entityType.BaseType.DisplayName()));
+                    }
+
+                    var key = entityType.GetKeys().FirstOrDefault();
+                    if (key != null)
+                    {
+                        throw new InvalidOperationException(
+                            CoreStrings.QueryTypeWithKey(Property.Format(key.Properties), entityType.DisplayName()));
+                    }
                 }
             }
         }

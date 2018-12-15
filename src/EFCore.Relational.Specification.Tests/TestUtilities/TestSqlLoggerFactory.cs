@@ -13,6 +13,8 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
 {
     public class TestSqlLoggerFactory : ListLoggerFactory
     {
+        private bool _proceduralQueryGeneration = false;
+
         private const string FileNewLine = @"
 ";
 
@@ -35,12 +37,11 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
 
         public void AssertBaseline(string[] expected, bool assertOrder = true)
         {
-#if Test21
-            if (expected != null)
+            if (_proceduralQueryGeneration)
             {
                 return;
             }
-#endif
+
             try
             {
                 if (assertOrder)
@@ -80,7 +81,7 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities
                     currentDirectory.LastIndexOf("\\test\\", StringComparison.Ordinal) + 1)
                               + "QueryBaseline.cs";
 
-                var testInfo = $"{testName + " : " + lineNumber}" + FileNewLine;
+                var testInfo = testName + " : " + lineNumber + FileNewLine;
 
                 var newBaseLine = $@"            AssertSql(
                 {string.Join("," + indent + "//" + indent, SqlStatements.Take(9).Select(sql => "@\"" + sql.Replace("\"", "\"\"") + "\""))});

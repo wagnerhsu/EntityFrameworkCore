@@ -23,6 +23,82 @@ namespace Microsoft.EntityFrameworkCore
 
         protected TFixture Fixture { get; }
 
+        [ConditionalTheory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public virtual DbUpdateException New_FK_is_not_cleared_on_old_dependent_delete(bool loadNewParent)
+        {
+            DbUpdateException updateException = null;
+
+            var removedId = 0;
+            var childId = 0;
+            int? newFk = 0;
+
+            ExecuteWithStrategyInTransaction(
+                context =>
+                {
+                    var removed = context.Set<Optional1>().OrderBy(e => e.Id).First();
+                    var child = context.Set<Optional2>().OrderBy(e => e.Id).First(e => e.ParentId == removed.Id);
+
+                    removedId = removed.Id;
+                    childId = child.Id;
+
+                    newFk = context.Set<Optional1>().AsNoTracking().Single(e => e.Id != removed.Id).Id;
+
+                    var newParent = loadNewParent ? context.Set<Optional1>().Find(newFk) : null;
+
+                    child.ParentId = newFk;
+
+                    context.Remove(removed);
+
+                    if (Fixture.ForceRestrict)
+                    {
+                        updateException = Assert.Throws<DbUpdateException>(() => context.SaveChanges());
+                    }
+                    else
+                    {
+                        context.SaveChanges();
+
+                        Assert.Equal(EntityState.Detached, context.Entry(removed).State);
+                        Assert.Equal(newFk, child.ParentId);
+
+                        if (loadNewParent)
+                        {
+                            Assert.Same(newParent, child.Parent);
+                            Assert.Contains(child, newParent.Children);
+                        }
+                        else
+                        {
+                            Assert.Null((child.Parent));
+                        }
+                    }
+                },
+                context =>
+                {
+                    if (!Fixture.ForceRestrict)
+                    {
+                        Assert.Null(context.Set<Optional1>().Find(removedId));
+
+                        var child = context.Set<Optional2>().Find(childId);
+                        var newParent = loadNewParent ? context.Set<Optional1>().Find(newFk) : null;
+
+                        Assert.Equal(newFk, child.ParentId);
+
+                        if (loadNewParent)
+                        {
+                            Assert.Same(newParent, child.Parent);
+                            Assert.Contains(child, newParent.Children);
+                        }
+                        else
+                        {
+                            Assert.Null((child.Parent));
+                        }
+                    }
+                });
+
+            return updateException;
+        }
+
         [ConditionalFact]
         public virtual DbUpdateException Optional_One_to_one_relationships_are_one_to_one()
         {
@@ -3543,6 +3619,50 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
+        public virtual void Required_many_to_one_dependent_leaves_can_be_deleted()
+        {
+            var removedId = 0;
+
+            ExecuteWithStrategyInTransaction(
+                context =>
+                {
+                    var root = LoadRequiredGraph(context);
+                    var parent = root.RequiredChildren.First();
+
+                    Assert.Equal(2, parent.Children.Count());
+                    var removed = parent.Children.First();
+
+                    removedId = removed.Id;
+
+                    context.Remove(removed);
+
+                    Assert.True(context.ChangeTracker.HasChanges());
+
+                    context.SaveChanges();
+
+                    Assert.False(context.ChangeTracker.HasChanges());
+                    Assert.Equal(EntityState.Detached, context.Entry(removed).State);
+
+                    Assert.Equal(1, parent.Children.Count());
+                    Assert.DoesNotContain(removedId, parent.Children.Select(e => e.Id));
+
+                    Assert.Empty(context.Set<Required2>().Where(e => e.Id == removedId));
+
+                    Assert.Same(parent, removed.Parent);
+                },
+                context =>
+                {
+                    var root = LoadRequiredGraph(context);
+                    var parent = root.RequiredChildren.First();
+
+                    Assert.Equal(1, parent.Children.Count());
+                    Assert.DoesNotContain(removedId, parent.Children.Select(e => e.Id));
+
+                    Assert.Empty(context.Set<Required2>().Where(e => e.Id == removedId));
+                });
+        }
+
+        [ConditionalFact]
         public virtual DbUpdateException Optional_many_to_one_dependents_are_orphaned()
         {
             DbUpdateException updateException = null;
@@ -3610,6 +3730,50 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
+        public virtual void Optional_many_to_one_dependent_leaves_can_be_deleted()
+        {
+            var removedId = 0;
+            ExecuteWithStrategyInTransaction(
+                context =>
+                {
+                    var root = LoadOptionalGraph(context);
+                    var parent = root.OptionalChildren.First();
+
+                    Assert.Equal(2, parent.Children.Count());
+
+                    var removed = parent.Children.First();
+                    removedId = removed.Id;
+
+                    context.Remove(removed);
+
+                    Assert.True(context.ChangeTracker.HasChanges());
+
+                    context.SaveChanges();
+
+                    Assert.False(context.ChangeTracker.HasChanges());
+
+                    Assert.Equal(EntityState.Detached, context.Entry(removed).State);
+
+                    Assert.Equal(1, parent.Children.Count());
+                    Assert.DoesNotContain(removedId, parent.Children.Select(e => e.Id));
+
+                    Assert.Empty(context.Set<Optional2>().Where(e => e.Id == removedId));
+
+                    Assert.Same(parent, removed.Parent);
+                },
+                context =>
+                {
+                    var root = LoadOptionalGraph(context);
+                    var parent = root.OptionalChildren.First();
+
+                    Assert.Equal(1, parent.Children.Count());
+                    Assert.DoesNotContain(removedId, parent.Children.Select(e => e.Id));
+
+                    Assert.Empty(context.Set<Optional2>().Where(e => e.Id == removedId));
+                });
+        }
+
+        [ConditionalFact]
         public virtual DbUpdateException Optional_one_to_one_are_orphaned()
         {
             DbUpdateException updateException = null;
@@ -3668,6 +3832,45 @@ namespace Microsoft.EntityFrameworkCore
                 });
 
             return updateException;
+        }
+
+        [ConditionalFact]
+        public virtual void Optional_one_to_one_leaf_can_be_deleted()
+        {
+            var removedId = 0;
+
+            ExecuteWithStrategyInTransaction(
+                context =>
+                {
+                    var root = LoadOptionalGraph(context);
+                    var parent = root.OptionalSingle;
+
+                    var removed = parent.Single;
+
+                    removedId = removed.Id;
+
+                    context.Remove(removed);
+
+                    Assert.True(context.ChangeTracker.HasChanges());
+
+                    context.SaveChanges();
+
+                    Assert.False(context.ChangeTracker.HasChanges());
+
+                    Assert.Equal(EntityState.Detached, context.Entry(removed).State);
+
+                    Assert.Null(parent.Single);
+                    Assert.Empty(context.Set<OptionalSingle2>().Where(e => e.Id == removedId));
+                    Assert.Same(parent, removed.Back);
+                },
+                context =>
+                {
+                    var root = LoadOptionalGraph(context);
+                    var parent = root.OptionalSingle;
+
+                    Assert.Null(parent.Single);
+                    Assert.Empty(context.Set<OptionalSingle2>().Where(e => e.Id == removedId));
+                });
         }
 
         [ConditionalFact]
@@ -3732,6 +3935,45 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
+        public virtual void Required_one_to_one_leaf_can_be_deleted()
+        {
+            var removedId = 0;
+
+            ExecuteWithStrategyInTransaction(
+                context =>
+                {
+                    var root = LoadRequiredGraph(context);
+                    var parent = root.RequiredSingle;
+
+                    var removed = parent.Single;
+
+                    removedId = removed.Id;
+
+                    context.Remove(removed);
+
+                    Assert.True(context.ChangeTracker.HasChanges());
+
+                    context.SaveChanges();
+
+                    Assert.False(context.ChangeTracker.HasChanges());
+
+                    Assert.Equal(EntityState.Detached, context.Entry(removed).State);
+
+                    Assert.Null(parent.Single);
+                    Assert.Empty(context.Set<RequiredSingle2>().Where(e => e.Id == removedId));
+                    Assert.Same(parent, removed.Back);
+                },
+                context =>
+                {
+                    var root = LoadRequiredGraph(context);
+                    var parent = root.RequiredSingle;
+
+                    Assert.Null(parent.Single);
+                    Assert.Empty(context.Set<RequiredSingle2>().Where(e => e.Id == removedId));
+                });
+        }
+
+        [ConditionalFact]
         public virtual DbUpdateException Required_non_PK_one_to_one_are_cascade_deleted()
         {
             DbUpdateException updateException = null;
@@ -3790,6 +4032,45 @@ namespace Microsoft.EntityFrameworkCore
                 });
 
             return updateException;
+        }
+
+        [ConditionalFact]
+        public virtual void Required_non_PK_one_to_one_leaf_can_be_deleted()
+        {
+            var removedId = 0;
+
+            ExecuteWithStrategyInTransaction(
+                context =>
+                {
+                    var root = LoadRequiredNonPkGraph(context);
+                    var parent = root.RequiredNonPkSingle;
+
+                    var removed = parent.Single;
+
+                    removedId = removed.Id;
+
+                    context.Remove(removed);
+
+                    Assert.True(context.ChangeTracker.HasChanges());
+
+                    context.SaveChanges();
+
+                    Assert.False(context.ChangeTracker.HasChanges());
+
+                    Assert.Equal(EntityState.Detached, context.Entry(removed).State);
+
+                    Assert.Null(parent.Single);
+                    Assert.Empty(context.Set<RequiredNonPkSingle2>().Where(e => e.Id == removedId));
+                    Assert.Same(parent, removed.Back);
+                },
+                context =>
+                {
+                    var root = LoadRequiredNonPkGraph(context);
+                    var parent = root.RequiredNonPkSingle;
+
+                    Assert.Null(parent.Single);
+                    Assert.Empty(context.Set<RequiredNonPkSingle2>().Where(e => e.Id == removedId));
+                });
         }
 
         [ConditionalFact]
@@ -4972,7 +5253,7 @@ namespace Microsoft.EntityFrameworkCore
             Root root = null;
 
             ExecuteWithStrategyInTransaction(
-                context => { root = LoadOptionalGraph(context); },
+                context => root = LoadOptionalGraph(context),
                 context =>
                 {
                     var removed = root.OptionalSingle;
@@ -5031,7 +5312,7 @@ namespace Microsoft.EntityFrameworkCore
             Root root = null;
 
             ExecuteWithStrategyInTransaction(
-                context => { root = LoadRequiredGraph(context); },
+                context => root = LoadRequiredGraph(context),
                 context =>
                 {
                     var removed = root.RequiredSingle;
@@ -5064,7 +5345,7 @@ namespace Microsoft.EntityFrameworkCore
                         Assert.Same(orphaned, removed.Single);
                     }
                 },
-                context => { root = LoadRequiredGraph(context); },
+                context => root = LoadRequiredGraph(context),
                 context =>
                 {
                     if (!Fixture.ForceRestrict)
@@ -5089,7 +5370,7 @@ namespace Microsoft.EntityFrameworkCore
             Root root = null;
 
             ExecuteWithStrategyInTransaction(
-                context => { root = LoadRequiredNonPkGraph(context); },
+                context => root = LoadRequiredNonPkGraph(context),
                 context =>
                 {
                     var removed = root.RequiredNonPkSingle;
@@ -5296,7 +5577,7 @@ namespace Microsoft.EntityFrameworkCore
             Root root = null;
 
             ExecuteWithStrategyInTransaction(
-                context => { root = LoadOptionalAkGraph(context); },
+                context => root = LoadOptionalAkGraph(context),
                 context =>
                 {
                     var removed = root.OptionalSingleAk;
@@ -5361,7 +5642,7 @@ namespace Microsoft.EntityFrameworkCore
             Root root = null;
 
             ExecuteWithStrategyInTransaction(
-                context => { root = LoadRequiredAkGraph(context); },
+                context => root = LoadRequiredAkGraph(context),
                 context =>
                 {
                     var removed = root.RequiredSingleAk;
@@ -5425,7 +5706,7 @@ namespace Microsoft.EntityFrameworkCore
             Root root = null;
 
             ExecuteWithStrategyInTransaction(
-                context => { root = LoadRequiredNonPkAkGraph(context); },
+                context => root = LoadRequiredNonPkAkGraph(context),
                 context =>
                 {
                     var removed = root.RequiredNonPkSingleAk;
@@ -5908,6 +6189,46 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
+        public virtual void Re_childing_parent_to_new_child_with_delete()
+        {
+            var oldId = 0;
+            var newId = 0;
+
+            ExecuteWithStrategyInTransaction(
+                context =>
+                {
+                    var parent = context.Set<ParentAsAChild>().Include(p => p.ChildAsAParent).Single();
+
+                    var oldChild = parent.ChildAsAParent;
+                    oldId = oldChild.Id;
+
+                    context.Remove(oldChild);
+
+                    var newChild = new ChildAsAParent();
+                    parent.ChildAsAParent = newChild;
+
+                    context.SaveChanges();
+
+                    newId = newChild.Id;
+                    Assert.NotEqual(newId, oldId);
+
+                    Assert.Equal(newId, parent.ChildAsAParentId);
+                    Assert.Same(newChild, parent.ChildAsAParent);
+
+                    Assert.Equal(EntityState.Detached, context.Entry(oldChild).State);
+                    Assert.Equal(EntityState.Unchanged, context.Entry(newChild).State);
+                    Assert.Equal(EntityState.Unchanged, context.Entry(parent).State);
+                },
+                context =>
+                {
+                    var parent = context.Set<ParentAsAChild>().Include(p => p.ChildAsAParent).Single();
+                    Assert.Equal(newId, parent.ChildAsAParentId);
+                    Assert.Equal(newId, parent.ChildAsAParent.Id);
+                    Assert.Null(context.Set<ChildAsAParent>().Find(oldId));
+                });
+        }
+
+        [ConditionalFact]
         public virtual void Sometimes_not_calling_DetectChanges_when_required_does_not_throw_for_null_ref()
         {
             ExecuteWithStrategyInTransaction(
@@ -5943,7 +6264,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
-        public virtual void Can_add_valid_first_depedent_when_multiple_possible_principal_sides()
+        public virtual void Can_add_valid_first_dependent_when_multiple_possible_principal_sides()
         {
             ExecuteWithStrategyInTransaction(
                 context =>
@@ -5968,7 +6289,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
-        public virtual void Can_add_valid_second_depedent_when_multiple_possible_principal_sides()
+        public virtual void Can_add_valid_second_dependent_when_multiple_possible_principal_sides()
         {
             ExecuteWithStrategyInTransaction(
                 context =>
@@ -5993,7 +6314,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [ConditionalFact]
-        public virtual void Can_add_multiple_depedents_when_multiple_possible_principal_sides()
+        public virtual void Can_add_multiple_dependents_when_multiple_possible_principal_sides()
         {
             ExecuteWithStrategyInTransaction(
                 context =>

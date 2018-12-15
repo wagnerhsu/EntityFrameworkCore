@@ -138,11 +138,19 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
                         constructorExpression)
                 };
 
+            var indexerPropertyInfo = entityType.EFIndexerProperty();
+
             blockExpressions.AddRange(
                 from property in properties
-                let targetMember = Expression.MakeMemberAccess(
-                    instanceVariable,
-                    property.GetMemberInfo(forConstruction: true, forSet: true))
+                let targetMember =
+                    property.IsIndexedProperty
+                        ? (Expression)Expression.MakeIndex(
+                            instanceVariable,
+                            indexerPropertyInfo,
+                            new List<Expression>() { Expression.Constant(property.Name) })
+                        : Expression.MakeMemberAccess(
+                            instanceVariable,
+                            property.GetMemberInfo(forConstruction: true, forSet: true))
                 select
                     Expression.Assign(
                         targetMember,

@@ -293,7 +293,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
         protected override Expression VisitMethodCall(MethodCallExpression methodCallExpression)
         {
             MethodCallExpression newExpression = null;
-            Expression firstArgument = null;
+            Expression querySource = null;
 
             if (methodCallExpression.Method.IsEFPropertyMethod())
             {
@@ -308,7 +308,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
 
                 if (newArguments[0].Type == typeof(ValueBuffer))
                 {
-                    firstArgument = newArguments[0];
+                    querySource = newArguments[0];
 
                     // Compensate for ValueBuffer being a struct, and hence not compatible with Object method
                     newExpression
@@ -318,17 +318,25 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
                             newArguments[1]);
                 }
             }
+            else if (methodCallExpression.Method.IsEFIndexer())
+            {
+                querySource = Visit(methodCallExpression.Object);
+                if (querySource.Type == typeof(ValueBuffer))
+                {
+                    return _queryModelVisitor.BindMethodCallToValueBuffer(methodCallExpression, querySource);
+                }
+            }
 
             if (newExpression == null)
             {
                 newExpression = (MethodCallExpression)base.VisitMethodCall(methodCallExpression);
             }
 
-            firstArgument = firstArgument ?? newExpression.Arguments.FirstOrDefault();
+            querySource = querySource ?? newExpression.Arguments.FirstOrDefault();
 
             return newExpression != methodCallExpression
-                && firstArgument?.Type == typeof(ValueBuffer)
-                ? _queryModelVisitor.BindMethodCallToValueBuffer(methodCallExpression, firstArgument) ?? newExpression
+                && querySource?.Type == typeof(ValueBuffer)
+                ? _queryModelVisitor.BindMethodCallToValueBuffer(methodCallExpression, querySource) ?? newExpression
                 : _queryModelVisitor.BindMethodCallToEntity(methodCallExpression, newExpression) ?? newExpression;
         }
 
@@ -342,24 +350,38 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
             [NotNull] QueryCompilationContext queryCompilationContext,
             out QuerySourceReferenceExpression querySourceReferenceExpression)
         {
+            expression = expression.RemoveNullConditional();
             var memberExpression = expression as MemberExpression;
             var methodCallExpression = expression as MethodCallExpression;
 
-            var innerExpression
-                = memberExpression?.Expression
-                  ?? ((methodCallExpression?.Method).IsEFPropertyMethod()
-                      ? methodCallExpression?.Arguments[0]
-                      : null);
+            Expression innerExpression = null;
+            string propertyName = null;
+            if (memberExpression != null)
+            {
+                innerExpression = memberExpression.Expression;
+                propertyName = memberExpression?.Member.Name;
+            }
+            else if (methodCallExpression != null)
+            {
+                if (methodCallExpression.Method.IsEFPropertyMethod())
+                {
+                    // this was a direct call to EF.Property()
+                    innerExpression = methodCallExpression.Arguments[0];
+                    propertyName = (string)(methodCallExpression.Arguments[1] as ConstantExpression)?.Value;
+                }
+                else if (methodCallExpression.Method.IsEFIndexer())
+                {
+                    // this was an indexer call
+                    innerExpression = methodCallExpression.Object;
+                    propertyName = (string)(methodCallExpression.Arguments[0] as ConstantExpression)?.Value;
+                }
+            }
 
             if (innerExpression == null)
             {
                 querySourceReferenceExpression = expression as QuerySourceReferenceExpression;
                 return new List<IPropertyBase>();
             }
-
-            Debug.Assert(memberExpression?.Member.Name != null || methodCallExpression != null);
-            var propertyName = memberExpression?.Member.Name
-                               ?? (string)(methodCallExpression.Arguments[1] as ConstantExpression)?.Value;
 
             // in case of inheritance there might be convert to derived type here, so we want to check it first
             var entityType = queryCompilationContext.Model.FindEntityType(innerExpression.Type);

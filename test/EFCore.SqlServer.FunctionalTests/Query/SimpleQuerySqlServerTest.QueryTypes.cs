@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Threading.Tasks;
@@ -91,7 +91,7 @@ WHERE [t].[CustomerID] = N'ALFKI'");
             await base.QueryType_with_defining_query_and_correlated_collection(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task QueryType_with_included_nav(bool isAsync)

@@ -47,38 +47,48 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions.Internal
         public virtual InternalEntityTypeBuilder Apply(InternalEntityTypeBuilder entityTypeBuilder)
         {
             Check.NotNull(entityTypeBuilder, nameof(entityTypeBuilder));
+
             var entityType = entityTypeBuilder.Metadata;
-
-            if (entityType.BaseType == null
-                && ConfigurationSource.Convention.Overrides(entityType.GetPrimaryKeyConfigurationSource()))
+            if (entityType.BaseType != null
+                || entityType.IsQueryType
+                || !ConfigurationSource.Convention.Overrides(entityType.GetPrimaryKeyConfigurationSource()))
             {
-                IReadOnlyList<Property> keyProperties = null;
-                var definingFk = entityType.FindDefiningNavigation()?.ForeignKey
-                                 ?? entityType.FindOwnership();
-                if (definingFk != null
-                    && definingFk.IsUnique
-                    && definingFk.DeclaringEntityType == entityType)
-                {
-                    keyProperties = definingFk.Properties;
-                }
+                return entityTypeBuilder;
+            }
 
-                if (keyProperties == null)
-                {
-                    var candidateProperties = entityType.GetProperties().Where(
-                        p => !p.IsShadowProperty
-                             || !ConfigurationSource.Convention.Overrides(p.GetConfigurationSource())).ToList();
-                    keyProperties = (IReadOnlyList<Property>)DiscoverKeyProperties(entityType, candidateProperties);
-                    if (keyProperties.Count > 1)
-                    {
-                        _logger?.MultiplePrimaryKeyCandidates(keyProperties[0], keyProperties[1]);
-                        return entityTypeBuilder;
-                    }
-                }
+            IReadOnlyList<Property> keyProperties = null;
+            var definingFk = entityType.FindDefiningNavigation()?.ForeignKey
+                             ?? entityType.FindOwnership();
 
-                if (keyProperties.Count > 0)
+            if (definingFk?.IsUnique == false
+                && definingFk.DeclaringEntityType == entityType)
+            {
+                entityTypeBuilder.PrimaryKey((IReadOnlyList<string>)null, ConfigurationSource.Convention);
+                return entityTypeBuilder;
+            }
+
+            if (definingFk?.IsUnique == true
+                && definingFk.DeclaringEntityType == entityType)
+            {
+                keyProperties = definingFk.Properties;
+            }
+
+            if (keyProperties == null)
+            {
+                var candidateProperties = entityType.GetProperties().Where(
+                    p => !p.IsShadowProperty
+                         || !ConfigurationSource.Convention.Overrides(p.GetConfigurationSource())).ToList();
+                keyProperties = (IReadOnlyList<Property>)DiscoverKeyProperties(entityType, candidateProperties);
+                if (keyProperties.Count > 1)
                 {
-                    entityTypeBuilder.PrimaryKey(keyProperties, ConfigurationSource.Convention);
+                    _logger?.MultiplePrimaryKeyCandidates(keyProperties[0], keyProperties[1]);
+                    return entityTypeBuilder;
                 }
+            }
+
+            if (keyProperties.Count > 0)
+            {
+                entityTypeBuilder.PrimaryKey(keyProperties, ConfigurationSource.Convention);
             }
 
             return entityTypeBuilder;

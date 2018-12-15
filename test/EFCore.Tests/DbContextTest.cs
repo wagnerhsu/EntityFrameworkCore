@@ -221,7 +221,7 @@ namespace Microsoft.EntityFrameworkCore
 
             protected internal override void OnModelCreating(ModelBuilder modelBuilder)
             {
-                modelBuilder.Entity<Question>(b => { b.HasOne(x => x.Author).WithMany(x => x.Questions).HasForeignKey(x => x.AuthorId); });
+                modelBuilder.Entity<Question>(b => b.HasOne(x => x.Author).WithMany(x => x.Questions).HasForeignKey(x => x.AuthorId));
 
                 modelBuilder.Entity<Answer>(
                     b =>
@@ -844,7 +844,7 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         [Fact]
-        public async void It_throws_object_disposed_exception()
+        public async Task It_throws_object_disposed_exception()
         {
             var context = new DbContext(new DbContextOptions<DbContext>());
             context.Dispose();

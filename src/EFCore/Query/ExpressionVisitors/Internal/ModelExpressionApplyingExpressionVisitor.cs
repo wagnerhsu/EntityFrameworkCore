@@ -26,6 +26,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
         private readonly QueryCompilationContext _queryCompilationContext;
         private readonly IQueryModelGenerator _queryModelGenerator;
         private readonly EntityQueryModelVisitor _entityQueryModelVisitor;
+        private readonly ParameterExtractingExpressionVisitor _parameterExtractingExpressionVisitor;
 
         private readonly Parameters _parameters = new Parameters();
 
@@ -53,6 +54,14 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
             _queryCompilationContext = queryCompilationContext;
             _queryModelGenerator = queryModelGenerator;
             _entityQueryModelVisitor = entityQueryModelVisitor;
+
+            _parameterExtractingExpressionVisitor = new ParameterExtractingExpressionVisitor(
+                ((QueryModelGenerator)queryModelGenerator).EvaluatableExpressionFilter,
+                _parameters,
+                _queryCompilationContext.ContextType,
+                _queryCompilationContext.Logger,
+                parameterize: false,
+                generateContextAccessors: true);
         }
 
         /// <summary>
@@ -109,15 +118,9 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
                             && _entityQueryModelVisitor.ShouldApplyDefiningQuery(entityType, _querySource))
                         {
                             var parameterizedQuery
-                                = _queryModelGenerator
-                                    .ExtractParameters(
-                                        _queryCompilationContext.Logger,
-                                        query.Body,
-                                        _parameters,
-                                        parameterize: false,
-                                        generateContextAccessors: true);
+                                = _parameterExtractingExpressionVisitor.ExtractParameters(query.Body);
 
-                            var subQueryModel = _queryModelGenerator.ParseQuery(Visit(parameterizedQuery));
+                            var subQueryModel = _queryModelGenerator.ParseQuery(parameterizedQuery);
 
                             newExpression = new SubQueryExpression(subQueryModel);
                         }
@@ -127,13 +130,8 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
                         && entityType.QueryFilter != null)
                     {
                         var parameterizedFilter
-                            = (LambdaExpression)_queryModelGenerator
-                                .ExtractParameters(
-                                    _queryCompilationContext.Logger,
-                                    entityType.QueryFilter,
-                                    _parameters,
-                                    parameterize: false,
-                                    generateContextAccessors: true);
+                                = (LambdaExpression)_parameterExtractingExpressionVisitor
+                                    .ExtractParameters(entityType.QueryFilter);
 
                         var oldParameterExpression = parameterizedFilter.Parameters[0];
                         var newParameterExpression = Expression.Parameter(type, oldParameterExpression.Name);
@@ -143,7 +141,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
                                 .Replace(
                                     oldParameterExpression,
                                     newParameterExpression,
-                                    Visit(parameterizedFilter.Body));
+                                    parameterizedFilter.Body);
 
                         var whereExpression
                             = Expression.Call(

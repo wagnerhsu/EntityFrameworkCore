@@ -1,232 +1,135 @@
   [
     {
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Scaffolding.IScaffoldingProviderCodeGenerator",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public static class Microsoft.EntityFrameworkCore.Scaffolding.Metadata.DatabaseColumnExtensions",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Scaffolding.IProviderConfigurationCodeGenerator",
+      "MemberId": "Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateUseProvider(System.String connectionString)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public class Microsoft.EntityFrameworkCore.Migrations.MigrationsSqlGenerator : Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator",
+      "MemberId": "protected virtual System.String GetColumnType(System.String schema, System.String table, System.String name, System.Type clrType, System.Nullable<System.Boolean> unicode, System.Nullable<System.Int32> maxLength, System.Boolean rowVersion, Microsoft.EntityFrameworkCore.Metadata.IModel model)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public class Microsoft.EntityFrameworkCore.Migrations.MigrationsSqlGenerator : Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator",
+      "MemberId": "protected virtual System.Void ColumnDefinition(System.String schema, System.String table, System.String name, System.Type clrType, System.String type, System.Nullable<System.Boolean> unicode, System.Nullable<System.Int32> maxLength, System.Boolean rowVersion, System.Boolean nullable, System.Object defaultValue, System.String defaultValueSql, System.String computedColumnSql, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotatable annotatable, Microsoft.EntityFrameworkCore.Metadata.IModel model, Microsoft.EntityFrameworkCore.Migrations.MigrationCommandListBuilder builder)",
+      "Kind": "Removal"
+    },
+    {
       "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Migrations.MigrationsSqlGeneratorDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Storage.IRelationalCommandBuilderFactory commandBuilderFactory, Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper sqlGenerationHelper, Microsoft.EntityFrameworkCore.Storage.IRelationalTypeMapper typeMapper)",
+      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Storage.IRelationalCommandBuilderFactory commandBuilderFactory, Microsoft.EntityFrameworkCore.Update.Internal.ISingletonUpdateSqlGenerator updateSqlGenerator, Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper sqlGenerationHelper, Microsoft.EntityFrameworkCore.Storage.IRelationalTypeMapper typeMapper, Microsoft.EntityFrameworkCore.Storage.IRelationalTypeMappingSource typeMappingSource)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Update.UpdateSqlGeneratorDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper sqlGenerationHelper)",
+      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Migrations.MigrationsSqlGeneratorDependencies",
+      "MemberId": "public Microsoft.EntityFrameworkCore.Migrations.MigrationsSqlGeneratorDependencies With(Microsoft.EntityFrameworkCore.Storage.IRelationalTypeMapper typeMapper)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Storage.RelationalConnectionDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions contextOptions, Microsoft.EntityFrameworkCore.Diagnostics.IDiagnosticsLogger<Microsoft.EntityFrameworkCore.DbLoggerCategory+Database+Transaction> transactionLogger, Microsoft.EntityFrameworkCore.Diagnostics.IDiagnosticsLogger<Microsoft.EntityFrameworkCore.DbLoggerCategory+Database+Connection> connectionLogger, Microsoft.EntityFrameworkCore.Storage.Internal.INamedConnectionStringResolver connectionStringResolver)",
+      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Migrations.MigrationsSqlGeneratorDependencies",
+      "MemberId": "public Microsoft.EntityFrameworkCore.Storage.IRelationalTypeMapper get_TypeMapper()",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Migrations.HistoryRepositoryDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator databaseCreator, Microsoft.EntityFrameworkCore.Storage.IRawSqlCommandBuilder rawSqlCommandBuilder, Microsoft.EntityFrameworkCore.Storage.IRelationalConnection connection, Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions options, Microsoft.EntityFrameworkCore.Migrations.IMigrationsModelDiffer modelDiffer, Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator migrationsSqlGenerator, Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper sqlGenerationHelper)",
+      "TypeId": "public abstract class Microsoft.EntityFrameworkCore.Scaffolding.ProviderCodeGenerator : Microsoft.EntityFrameworkCore.Scaffolding.IProviderConfigurationCodeGenerator",
+      "MemberId": "public Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateUseProvider(System.String connectionString)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreatorDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Metadata.IModel model, Microsoft.EntityFrameworkCore.Storage.IRelationalConnection connection, Microsoft.EntityFrameworkCore.Migrations.IMigrationsModelDiffer modelDiffer, Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator migrationsSqlGenerator, Microsoft.EntityFrameworkCore.Migrations.IMigrationCommandExecutor migrationCommandExecutor, Microsoft.EntityFrameworkCore.Storage.IExecutionStrategyFactory executionStrategyFactory)",
+      "TypeId": "public abstract class Microsoft.EntityFrameworkCore.Scaffolding.ProviderCodeGenerator : Microsoft.EntityFrameworkCore.Scaffolding.IProviderConfigurationCodeGenerator",
+      "MemberId": "public Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateUseProvider(System.String connectionString, Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment providerOptions)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Storage.RelationalValueBufferFactoryDependencies",
-      "MemberId": "public .ctor()",
+      "TypeId": "public class Microsoft.EntityFrameworkCore.Design.AnnotationCodeGenerator : Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "public System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IEntityType entityType, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Query.Expressions.SelectExpressionDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Query.Sql.IQuerySqlGeneratorFactory querySqlGeneratorFactory)",
+      "TypeId": "public class Microsoft.EntityFrameworkCore.Design.AnnotationCodeGenerator : Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "public System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IForeignKey foreignKey, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Storage.IRelationalValueBufferFactoryFactory",
-      "MemberId": "Microsoft.EntityFrameworkCore.Storage.IRelationalValueBufferFactory Create(System.Collections.Generic.IReadOnlyList<Microsoft.EntityFrameworkCore.Storage.TypeMaterializationInfo> types)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator : Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator",
-      "MemberId": "System.String GenerateCreateScript()",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
-      "MemberId": "Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IEntityType entityType, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
-      "MemberId": "Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IForeignKey foreignKey, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
-      "MemberId": "Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IIndex index, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
-      "MemberId": "Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IKey key, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
-      "MemberId": "Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IModel model, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
-      "MemberId": "Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IProperty property, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.SqlTranslatingExpressionVisitorDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Query.ExpressionTranslators.IExpressionFragmentTranslator compositeExpressionFragmentTranslator, Microsoft.EntityFrameworkCore.Query.ExpressionTranslators.ICompositeMethodCallTranslator methodCallTranslator, Microsoft.EntityFrameworkCore.Query.ExpressionTranslators.IMemberTranslator memberTranslator, Microsoft.EntityFrameworkCore.Storage.IRelationalTypeMapper relationalTypeMapper)",
+      "TypeId": "public class Microsoft.EntityFrameworkCore.Design.AnnotationCodeGenerator : Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "public System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IIndex index, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Query.Sql.QuerySqlGeneratorDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Storage.IRelationalCommandBuilderFactory commandBuilderFactory, Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper sqlGenerationHelper, Microsoft.EntityFrameworkCore.Storage.IParameterNameGeneratorFactory parameterNameGeneratorFactory, Microsoft.EntityFrameworkCore.Storage.IRelationalTypeMapper relationalTypeMapper)",
+      "TypeId": "public class Microsoft.EntityFrameworkCore.Design.AnnotationCodeGenerator : Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "public System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IKey key, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Infrastructure.RelationalModelValidatorDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Storage.IRelationalTypeMapper typeMapper)",
+      "TypeId": "public class Microsoft.EntityFrameworkCore.Design.AnnotationCodeGenerator : Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "public System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IModel model, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public class Microsoft.EntityFrameworkCore.Design.AnnotationCodeGenerator : Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "public System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IProperty property, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
       "Kind": "Removal"
     },
     {
       "TypeId": "public class Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder",
-      "MemberId": "public virtual Microsoft.EntityFrameworkCore.Migrations.Operations.Builders.AlterOperationBuilder<Microsoft.EntityFrameworkCore.Migrations.Operations.AlterColumnOperation> AlterColumn<T0>(System.String name, System.String table, System.String type = null, System.Nullable<System.Boolean> unicode = default(System.Nullable<System.Boolean>), System.Nullable<System.Int32> maxLength = default(System.Nullable<System.Int32>), System.Boolean rowVersion = False, System.String schema = null, System.Boolean nullable = False, System.Object defaultValue = null, System.String defaultValueSql = null, System.String computedColumnSql = null, System.Type oldClrType = null, System.String oldType = null, System.Nullable<System.Boolean> oldUnicode = default(System.Nullable<System.Boolean>), System.Nullable<System.Int32> oldMaxLength = default(System.Nullable<System.Int32>), System.Boolean oldRowVersion = False, System.Boolean oldNullable = False, System.Object oldDefaultValue = null, System.String oldDefaultValueSql = null, System.String oldComputedColumnSql = null)",
+      "MemberId": "public virtual Microsoft.EntityFrameworkCore.Migrations.Operations.Builders.AlterOperationBuilder<Microsoft.EntityFrameworkCore.Migrations.Operations.AlterColumnOperation> AlterColumn<T0>(System.String name, System.String table, System.String type, System.Nullable<System.Boolean> unicode, System.Nullable<System.Int32> maxLength, System.Boolean rowVersion, System.String schema, System.Boolean nullable, System.Object defaultValue, System.String defaultValueSql, System.String computedColumnSql, System.Type oldClrType, System.String oldType, System.Nullable<System.Boolean> oldUnicode, System.Nullable<System.Int32> oldMaxLength, System.Boolean oldRowVersion, System.Boolean oldNullable, System.Object oldDefaultValue, System.String oldDefaultValueSql, System.String oldComputedColumnSql)",
       "Kind": "Removal"
     },
     {
       "TypeId": "public class Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder",
-      "MemberId": "public virtual Microsoft.EntityFrameworkCore.Migrations.Operations.Builders.OperationBuilder<Microsoft.EntityFrameworkCore.Migrations.Operations.AddColumnOperation> AddColumn<T0>(System.String name, System.String table, System.String type = null, System.Nullable<System.Boolean> unicode = default(System.Nullable<System.Boolean>), System.Nullable<System.Int32> maxLength = default(System.Nullable<System.Int32>), System.Boolean rowVersion = False, System.String schema = null, System.Boolean nullable = False, System.Object defaultValue = null, System.String defaultValueSql = null, System.String computedColumnSql = null)",
+      "MemberId": "public virtual Microsoft.EntityFrameworkCore.Migrations.Operations.Builders.OperationBuilder<Microsoft.EntityFrameworkCore.Migrations.Operations.AddColumnOperation> AddColumn<T0>(System.String name, System.String table, System.String type, System.Nullable<System.Boolean> unicode, System.Nullable<System.Int32> maxLength, System.Boolean rowVersion, System.String schema, System.Boolean nullable, System.Object defaultValue, System.String defaultValueSql, System.String computedColumnSql)",
       "Kind": "Removal"
     },
     {
       "TypeId": "public class Microsoft.EntityFrameworkCore.Migrations.Operations.Builders.ColumnsBuilder",
-      "MemberId": "public virtual Microsoft.EntityFrameworkCore.Migrations.Operations.Builders.OperationBuilder<Microsoft.EntityFrameworkCore.Migrations.Operations.AddColumnOperation> Column<T0>(System.String type = null, System.Nullable<System.Boolean> unicode = default(System.Nullable<System.Boolean>), System.Nullable<System.Int32> maxLength = default(System.Nullable<System.Int32>), System.Boolean rowVersion = False, System.String name = null, System.Boolean nullable = False, System.Object defaultValue = null, System.String defaultValueSql = null, System.String computedColumnSql = null)",
+      "MemberId": "public virtual Microsoft.EntityFrameworkCore.Migrations.Operations.Builders.OperationBuilder<Microsoft.EntityFrameworkCore.Migrations.Operations.AddColumnOperation> Column<T0>(System.String type, System.Nullable<System.Boolean> unicode, System.Nullable<System.Int32> maxLength, System.Boolean rowVersion, System.String name, System.Boolean nullable, System.Object defaultValue, System.String defaultValueSql, System.String computedColumnSql)",
       "Kind": "Removal"
     },
     {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Metadata.IRelationalPropertyAnnotations",
-      "MemberId": "System.Boolean get_IsFixedLength()",
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IEntityType entityType, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IForeignKey foreignKey, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IIndex index, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IKey key, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IModel model, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Design.IAnnotationCodeGenerator",
+      "MemberId": "System.String GenerateFluentApi(Microsoft.EntityFrameworkCore.Metadata.IProperty property, Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation annotation, System.String language)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public abstract class Microsoft.EntityFrameworkCore.Scaffolding.ProviderCodeGenerator : Microsoft.EntityFrameworkCore.Scaffolding.IProviderConfigurationCodeGenerator",
+      "MemberId": "public abstract Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment GenerateUseProvider(System.String connectionString, Microsoft.EntityFrameworkCore.Design.MethodCallCodeFragment providerOptions)",
       "Kind": "Addition"
     },
     {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Query.IQueryMethodProvider",
-      "MemberId": "System.Reflection.MethodInfo get_FastQueryMethod()",
+      "TypeId": "public interface Microsoft.EntityFrameworkCore.Storage.IRelationalConnection : Microsoft.EntityFrameworkCore.Storage.IRelationalTransactionManager, System.IDisposable",
+      "MemberId": "System.Void UnregisterBufferable(Microsoft.EntityFrameworkCore.Query.Internal.IBufferable bufferable)",
       "Kind": "Addition"
-    },    
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.BoolTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.ByteArrayTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.ByteTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.CharTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.DateTimeOffsetTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.DateTimeTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.DecimalTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.DoubleTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.FloatTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.GuidTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.IntTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.LongTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.SByteTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.ShortTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.StringTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.TimeSpanTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.UIntTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.ULongTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public class Microsoft.EntityFrameworkCore.Storage.UShortTypeMapping : Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping",
-      "MemberId": "public override Microsoft.EntityFrameworkCore.Storage.RelationalTypeMapping Clone(System.String storeType, System.Nullable<System.Int32> size)",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper",
-      "MemberId": "System.String GenerateParameterNamePlaceholder(System.String name)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public interface Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper",
-      "MemberId": "System.Void GenerateParameterNamePlaceholder(System.Text.StringBuilder builder, System.String name)",
-      "Kind": "Addition"
-    },
-    {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Query.ExpressionTranslators.RelationalCompositeMemberTranslatorDependencies",
-      "MemberId": "public .ctor()",
-      "Kind": "Removal"
-    },
-    {
-      "TypeId": "public sealed class Microsoft.EntityFrameworkCore.Query.ExpressionTranslators.RelationalCompositeMethodCallTranslatorDependencies",
-      "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Diagnostics.IDiagnosticsLogger<Microsoft.EntityFrameworkCore.DbLoggerCategory+Query> logger)",
-      "Kind": "Removal"
     }
-]
+  ]

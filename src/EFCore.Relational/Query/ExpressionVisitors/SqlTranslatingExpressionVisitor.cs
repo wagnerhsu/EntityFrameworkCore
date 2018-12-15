@@ -370,12 +370,15 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors
                             _querySource = qs;
                             _propertyName = p.Name;
 
-                            if ((_queryModelVisitor.QueryCompilationContext.FindEntityType(_querySource)
-                                 ?? _queryModelVisitor.QueryCompilationContext.Model.FindEntityType(_querySource.ItemType))
-                                ?.FindProperty(_propertyName)?.IsPrimaryKey()
-                                ?? false)
+                            if (_querySource != null)
                             {
-                                _propertyName = null;
+                                if ((_queryModelVisitor.QueryCompilationContext.FindEntityType(_querySource)
+                                     ?? _queryModelVisitor.QueryCompilationContext.Model.FindEntityType(_querySource.ItemType))
+                                    ?.FindProperty(_propertyName)?.IsPrimaryKey()
+                                    ?? false)
+                                {
+                                    _propertyName = null;
+                                }
                             }
                         });
                 }
@@ -607,9 +610,15 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors
         {
             Check.NotNull(methodCallExpression, nameof(methodCallExpression));
 
-            var operand = _queryModelVisitor.QueryCompilationContext.Model.Relational().FindDbFunction(methodCallExpression.Method) != null
-                ? methodCallExpression.Object
-                : Visit(methodCallExpression.Object);
+            // if method is EFIndexer then we need to skip attempting to translate
+            // the method call and fall through to binding the expression below
+            // (this supports joining on an indexed property)
+            var operand =
+                methodCallExpression.Method.IsEFIndexer()
+                ? null
+                :  _queryModelVisitor.QueryCompilationContext.Model.Relational().FindDbFunction(methodCallExpression.Method) != null
+                    ? methodCallExpression.Object
+                    : Visit(methodCallExpression.Object);
 
             if (operand != null
                 || methodCallExpression.Object == null)
@@ -873,7 +882,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors
             Check.NotNull(expression, nameof(expression));
 
             if (expression.Members != null
-                && expression.Arguments.Any()
+                && expression.Arguments.Count > 0
                 && expression.Arguments.Count == expression.Members.Count)
             {
                 var memberBindings

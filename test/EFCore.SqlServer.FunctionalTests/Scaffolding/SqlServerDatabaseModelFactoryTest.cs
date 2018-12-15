@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -845,7 +846,6 @@ DROP TYPE dbo.TestTypeAlias;
 DROP TYPE db2.TestTypeAlias;");
         }
 
-#if !Test21
         [Fact]
         public void Column_with_sysname_assigns_underlying_store_type_and_nullability()
         {
@@ -868,7 +868,6 @@ CREATE TABLE TypeAlias (
                 @"
 DROP TABLE TypeAlias;");
         }
-#endif
 
         [Fact]
         public void Decimal_numeric_types_have_precision_scale()
@@ -2191,6 +2190,30 @@ CREATE TABLE DependentTable (
                 },
                 @"
 DROP TABLE DependentTable;
+DROP TABLE PrincipalTable;");
+        }
+
+        [Fact]
+        public void Skip_reflexive_foreign_key()
+        {
+            Test(
+                @"
+CREATE TABLE PrincipalTable (
+    Id int PRIMARY KEY,
+    CONSTRAINT MYFK FOREIGN KEY (Id) REFERENCES PrincipalTable(Id)
+);",
+                Enumerable.Empty<string>(),
+                Enumerable.Empty<string>(),
+                dbModel =>
+                {
+                    var (level, _, message, _, _) = Assert.Single(Fixture.ListLoggerFactory.Log, t => t.Id == SqlServerEventId.ReflexiveConstraintIgnored);
+                    Assert.Equal(LogLevel.Debug, level);
+                    Assert.Equal(SqlServerStrings.LogReflexiveConstraintIgnored.GenerateMessage("MYFK", "dbo.PrincipalTable"), message);
+
+                    var table = Assert.Single(dbModel.Tables);
+                    Assert.Empty(table.ForeignKeys);
+                },
+                @"
 DROP TABLE PrincipalTable;");
         }
 

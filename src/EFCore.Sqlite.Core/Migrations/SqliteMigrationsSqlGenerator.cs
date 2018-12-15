@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.EntityFrameworkCore.Sqlite.Internal;
 using Microsoft.EntityFrameworkCore.Sqlite.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Utilities;
 
@@ -23,19 +24,6 @@ namespace Microsoft.EntityFrameworkCore.Migrations
     /// </summary>
     public class SqliteMigrationsSqlGenerator : MigrationsSqlGenerator
     {
-        private static readonly HashSet<string> _spatialiteTypes
-            = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "GEOMETRY",
-                "GEOMETRYCOLLECTION",
-                "LINESTRING",
-                "MULTILINESTRING",
-                "MULTIPOINT",
-                "MULTIPOLYGON",
-                "POINT",
-                "POLYGON"
-            };
-
         private readonly IMigrationsAnnotationProvider _migrationsAnnotations;
 
         /// <summary>
@@ -59,16 +47,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         public override IReadOnlyList<MigrationCommand> Generate(IReadOnlyList<MigrationOperation> operations, IModel model = null)
             => base.Generate(RewriteOperations(operations, model), model);
 
-        /// <summary>
-        ///     Checks whether a column type is one of the SpatiaLite column types.
-        /// </summary>
-        /// <param name="columnType"> The column type to check. </param>
-        /// <returns> true if it's a SpatiaLite type; otherwise, false.  </returns>
-        public static bool IsSpatialiteType(string columnType)
-            => _spatialiteTypes.Contains(columnType);
-
         private bool IsSpatialiteColumn(AddColumnOperation operation, IModel model)
-            => IsSpatialiteType(
+            => SqliteTypeMappingSource.IsSpatialiteType(
                 operation.ColumnType
                     ?? GetColumnType(
                         operation.Schema,
@@ -220,21 +200,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         /// <param name="operation"> The operation. </param>
         /// <param name="model"> The target model which may be <c>null</c> if the operations exist without a model. </param>
         /// <param name="builder"> The command builder to use to build the commands. </param>
-        protected override void Generate(DropIndexOperation operation, IModel model, MigrationCommandListBuilder builder)
-            => Generate(operation, model, builder, terminate: true);
-
-        /// <summary>
-        ///     Builds commands for the given <see cref="DropIndexOperation" />
-        ///     by making calls on the given <see cref="MigrationCommandListBuilder" />.
-        /// </summary>
-        /// <param name="operation"> The operation. </param>
-        /// <param name="model"> The target model which may be <c>null</c> if the operations exist without a model. </param>
-        /// <param name="builder"> The command builder to use to build the commands. </param>
         /// <param name="terminate"> Indicates whether or not to terminate the command after generating SQL for the operation. </param>
-        protected virtual void Generate(
-            [NotNull] DropIndexOperation operation,
-            [CanBeNull] IModel model,
-            [NotNull] MigrationCommandListBuilder builder,
+        protected override void Generate(
+            DropIndexOperation operation,
+            IModel model,
+            MigrationCommandListBuilder builder,
             bool terminate)
         {
             Check.NotNull(operation, nameof(operation));
@@ -318,6 +288,29 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                     .AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator)
                     .EndCommand();
             }
+        }
+
+        /// <summary>
+        ///     Builds commands for the given <see cref="RenameTableOperation" />
+        ///     by making calls on the given <see cref="MigrationCommandListBuilder" />.
+        /// </summary>
+        /// <param name="operation"> The operation. </param>
+        /// <param name="model"> The target model which may be <c>null</c> if the operations exist without a model. </param>
+        /// <param name="builder"> The command builder to use to build the commands. </param>
+        protected override void Generate(RenameColumnOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            Check.NotNull(operation, nameof(operation));
+            Check.NotNull(builder, nameof(builder));
+
+            builder
+                .Append("ALTER TABLE ")
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Table))
+                .Append(" RENAME COLUMN ")
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name))
+                .Append(" TO ")
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.NewName))
+                .AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator)
+                .EndCommand();
         }
 
         /// <summary>
@@ -523,17 +516,6 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         /// <param name="model"> The target model which may be <c>null</c> if the operations exist without a model. </param>
         /// <param name="builder"> The command builder to use to build the commands. </param>
         protected override void Generate(DropUniqueConstraintOperation operation, IModel model, MigrationCommandListBuilder builder)
-            => throw new NotSupportedException(
-                SqliteStrings.InvalidMigrationOperation(operation.GetType().ShortDisplayName()));
-
-        /// <summary>
-        ///     Throws <see cref="NotSupportedException" /> since this operation requires table rebuilds, which
-        ///     are not yet supported.
-        /// </summary>
-        /// <param name="operation"> The operation. </param>
-        /// <param name="model"> The target model which may be <c>null</c> if the operations exist without a model. </param>
-        /// <param name="builder"> The command builder to use to build the commands. </param>
-        protected override void Generate(RenameColumnOperation operation, IModel model, MigrationCommandListBuilder builder)
             => throw new NotSupportedException(
                 SqliteStrings.InvalidMigrationOperation(operation.GetType().ShortDisplayName()));
 

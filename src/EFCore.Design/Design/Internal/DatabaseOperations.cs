@@ -30,6 +30,7 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
         /// </summary>
         public DatabaseOperations(
             [NotNull] IOperationReporter reporter,
+            [NotNull] Assembly assembly,
             [NotNull] Assembly startupAssembly,
             [NotNull] string projectDir,
             [NotNull] string rootNamespace,
@@ -47,7 +48,7 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
             _rootNamespace = rootNamespace;
             _language = language;
 
-            _servicesBuilder = new DesignTimeServicesBuilder(startupAssembly, reporter, args);
+            _servicesBuilder = new DesignTimeServicesBuilder(assembly, startupAssembly, reporter, args);
         }
 
         /// <summary>
@@ -83,19 +84,16 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
 
             var scaffolder = services.GetRequiredService<IReverseEngineerScaffolder>();
 
-            var @namespace = _rootNamespace;
-
-            var subNamespace = SubnamespaceFromOutputPath(_projectDir, outputDir);
-            if (!string.IsNullOrEmpty(subNamespace))
-            {
-                @namespace += "." + subNamespace;
-            }
+            var modelNamespace = GetNamespaceFromOutputPath(outputDir);
+            var contextNamespace = GetNamespaceFromOutputPath(outputContextDir);
 
             var scaffoldedModel = scaffolder.ScaffoldModel(
                 connectionString,
                 tables,
                 schemas,
-                @namespace,
+                _rootNamespace,
+                modelNamespace,
+                contextNamespace,
                 _language,
                 MakeDirRelative(outputDir, outputContextDir),
                 dbContextClassName,
@@ -112,6 +110,14 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
                 scaffoldedModel,
                 outputDir,
                 overwriteFiles);
+        }
+
+        private string GetNamespaceFromOutputPath(string directoryPath)
+        {
+            var subNamespace = SubnamespaceFromOutputPath(_projectDir, directoryPath);
+            return string.IsNullOrEmpty(subNamespace)
+                ? _rootNamespace
+                : _rootNamespace + "." + subNamespace;
         }
 
         // if outputDir is a subfolder of projectDir, then use each subfolder as a subnamespace

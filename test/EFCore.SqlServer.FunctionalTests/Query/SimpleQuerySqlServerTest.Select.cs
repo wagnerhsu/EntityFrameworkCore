@@ -124,11 +124,8 @@ WHERE [e].[EmployeeID] = 1");
             await base.Select_bool_closure_with_order_by_property_with_cast_to_nullable(isAsync);
 
             AssertSql(
-                @"@__boolean_0='False'
-
-SELECT @__boolean_0 AS [f]
-FROM [Customers] AS [c]
-ORDER BY (SELECT 1)");
+                @"SELECT 1
+FROM [Customers] AS [c]");
         }
 
         public override async Task Select_bool_closure_with_order_parameter_with_cast_to_nullable(bool isAsync)
@@ -139,8 +136,7 @@ ORDER BY (SELECT 1)");
                 @"@__boolean_0='False'
 
 SELECT @__boolean_0
-FROM [Customers] AS [c]
-ORDER BY (SELECT 1)");
+FROM [Customers] AS [c]");
         }
 
         public override async Task Select_scalar(bool isAsync)
@@ -674,7 +670,7 @@ FROM [Customers] AS [c]");
             await base.Project_single_element_from_collection_with_OrderBy_Distinct_and_FirstOrDefault_followed_by_projecting_length(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Project_single_element_from_collection_with_OrderBy_Take_and_SingleOrDefault(bool isAsync)
@@ -741,7 +737,7 @@ FROM [Customers] AS [c]");
             await base.Project_single_element_from_collection_with_multiple_OrderBys_Take_and_FirstOrDefault_followed_by_projection_of_length_property(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Project_single_element_from_collection_with_multiple_OrderBys_Take_and_FirstOrDefault_2(bool isAsync)

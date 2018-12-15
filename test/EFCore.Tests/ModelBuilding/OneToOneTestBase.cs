@@ -2669,7 +2669,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             {
                 var modelBuilder = CreateModelBuilder();
                 modelBuilder.Entity<SelfRef>(
-                    eb => { eb.HasKey(e => e.Id); });
+                    eb => eb.HasKey(e => e.Id));
 
                 var entityType = modelBuilder.Model.FindEntityType(typeof(SelfRef));
 
@@ -3748,6 +3748,22 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             }
 
             [Fact]
+            public virtual void Creates_field_backed_FK_property()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Ignore<Alpha>();
+
+                modelBuilder.Entity<Quarks>(
+                    b => b.HasOne<Beta>().WithOne().HasForeignKey<Quarks>("ForUp").IsRequired());
+
+                var fkProperty = modelBuilder.Model.FindEntityType(typeof(Quarks)).GetForeignKeys().Single().Properties.Single();
+                Assert.Equal("ForUp", fkProperty.Name);
+                Assert.Equal(typeof(int), fkProperty.ClrType);
+                Assert.Equal("_forUp", fkProperty.FieldInfo.Name);
+            }
+
+            [Fact]
             public virtual void Handles_identity_correctly_while_removing_navigation()
             {
                 var modelBuilder = CreateModelBuilder();
@@ -3799,7 +3815,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                         b.Ignore(e => e.OneToOneDependentEntityId);
                         b.Ignore(e => e.NavOneToOneDependentEntityId);
                     });
-                modelBuilder.Entity<OneToOneDependentEntity>(b => { b.Ignore(e => e.OneToOnePrincipalEntityId); });
+                modelBuilder.Entity<OneToOneDependentEntity>(b => b.Ignore(e => e.OneToOnePrincipalEntityId));
 
                 modelBuilder.Entity<OneToOnePrincipalEntity>().HasOne(e => e.NavOneToOneDependentEntity).WithOne(e => e.NavOneToOnePrincipalEntity);
 
@@ -3822,7 +3838,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                         b.Ignore(e => e.OneToOneDependentEntityId);
                         b.Ignore(e => e.NavOneToOneDependentEntityId);
                     });
-                modelBuilder.Entity<OneToOneDependentEntity>(b => { b.Ignore(e => e.NavOneToOnePrincipalEntityId); });
+                modelBuilder.Entity<OneToOneDependentEntity>(b => b.Ignore(e => e.NavOneToOnePrincipalEntityId));
 
                 modelBuilder.Entity<OneToOnePrincipalEntity>().HasOne(e => e.NavOneToOneDependentEntity).WithOne(e => e.NavOneToOnePrincipalEntity);
 
@@ -3839,7 +3855,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Can_invert_one_to_one_relationship_if_principal_has_matching_property_with_navigation_name()
             {
                 var modelBuilder = CreateModelBuilder();
-                modelBuilder.Entity<OneToOnePrincipalEntity>(b => { b.Ignore(e => e.OneToOneDependentEntityId); });
+                modelBuilder.Entity<OneToOnePrincipalEntity>(b => b.Ignore(e => e.OneToOneDependentEntityId));
                 modelBuilder.Entity<OneToOneDependentEntity>(
                     b =>
                     {
@@ -3862,7 +3878,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Can_invert_one_to_one_relationship_if_principal_has_matching_property_with_entity_type_name()
             {
                 var modelBuilder = CreateModelBuilder();
-                modelBuilder.Entity<OneToOnePrincipalEntity>(b => { b.Ignore(e => e.NavOneToOneDependentEntityId); });
+                modelBuilder.Entity<OneToOnePrincipalEntity>(b => b.Ignore(e => e.NavOneToOneDependentEntityId));
                 modelBuilder.Entity<OneToOneDependentEntity>(
                     b =>
                     {
@@ -3889,7 +3905,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.Entity<OneToOnePrincipalEntity>().HasOne(e => e.NavOneToOneDependentEntity).WithOne(e => e.NavOneToOnePrincipalEntity).IsRequired();
 
                 modelBuilder.Entity<OneToOnePrincipalEntity>(
-                    b => { b.Ignore(e => e.NavOneToOneDependentEntityId); });
+                    b => b.Ignore(e => e.NavOneToOneDependentEntityId));
                 modelBuilder.Entity<OneToOneDependentEntity>(
                     b =>
                     {
@@ -3914,7 +3930,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                         b.Ignore(e => e.NavOneToOneDependentEntityId);
                     });
                 modelBuilder.Entity<OneToOneDependentEntity>(
-                    b => { b.Ignore(e => e.OneToOnePrincipalEntityId); });
+                    b => b.Ignore(e => e.OneToOnePrincipalEntityId));
 
                 modelBuilder.Validate();
             }
@@ -3976,8 +3992,8 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Throws_for_one_to_one_relationship_if_both_sides_have_matching_property_with_navigation_name()
             {
                 var modelBuilder = CreateModelBuilder();
-                modelBuilder.Entity<OneToOnePrincipalEntity>(b => { b.Ignore(e => e.OneToOneDependentEntityId); });
-                modelBuilder.Entity<OneToOneDependentEntity>(b => { b.Ignore(e => e.OneToOnePrincipalEntityId); });
+                modelBuilder.Entity<OneToOnePrincipalEntity>(b => b.Ignore(e => e.OneToOneDependentEntityId));
+                modelBuilder.Entity<OneToOneDependentEntity>(b => b.Ignore(e => e.OneToOnePrincipalEntityId));
 
                 modelBuilder.Entity<OneToOnePrincipalEntity>().HasOne(e => e.NavOneToOneDependentEntity).WithOne(e => e.NavOneToOnePrincipalEntity);
 
@@ -3992,8 +4008,8 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Throws_for_one_to_one_relationship_if_both_sides_have_matching_property_with_entity_type_name()
             {
                 var modelBuilder = CreateModelBuilder();
-                modelBuilder.Entity<OneToOnePrincipalEntity>(b => { b.Ignore(e => e.NavOneToOneDependentEntityId); });
-                modelBuilder.Entity<OneToOneDependentEntity>(b => { b.Ignore(e => e.NavOneToOnePrincipalEntityId); });
+                modelBuilder.Entity<OneToOnePrincipalEntity>(b => b.Ignore(e => e.NavOneToOneDependentEntityId));
+                modelBuilder.Entity<OneToOneDependentEntity>(b => b.Ignore(e => e.NavOneToOnePrincipalEntityId));
 
                 modelBuilder.Entity<OneToOnePrincipalEntity>().HasOne(e => e.NavOneToOneDependentEntity).WithOne(e => e.NavOneToOnePrincipalEntity);
 
@@ -4008,8 +4024,8 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Throws_for_one_to_one_relationship_if_both_sides_have_matching_property_mixed()
             {
                 var modelBuilder = CreateModelBuilder();
-                modelBuilder.Entity<OneToOnePrincipalEntity>(b => { b.Ignore(e => e.NavOneToOneDependentEntityId); });
-                modelBuilder.Entity<OneToOneDependentEntity>(b => { b.Ignore(e => e.OneToOnePrincipalEntityId); });
+                modelBuilder.Entity<OneToOnePrincipalEntity>(b => b.Ignore(e => e.NavOneToOneDependentEntityId));
+                modelBuilder.Entity<OneToOneDependentEntity>(b => b.Ignore(e => e.OneToOnePrincipalEntityId));
 
                 modelBuilder.Entity<OneToOnePrincipalEntity>().HasOne(e => e.NavOneToOneDependentEntity).WithOne(e => e.NavOneToOnePrincipalEntity);
 
@@ -4138,7 +4154,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
             public virtual void Creates_one_to_one_relationship_with_single_ref_as_principal_to_dependent_if_matching_properties_are_on_the_other_side()
             {
                 var modelBuilder = CreateModelBuilder();
-                modelBuilder.Entity<OneToOnePrincipalEntity>(b => { b.Ignore(e => e.NavOneToOneDependentEntityId); });
+                modelBuilder.Entity<OneToOnePrincipalEntity>(b => b.Ignore(e => e.NavOneToOneDependentEntityId));
                 modelBuilder.Entity<OneToOneDependentEntity>(
                     b =>
                     {

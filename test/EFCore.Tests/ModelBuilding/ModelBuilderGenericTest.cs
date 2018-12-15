@@ -60,6 +60,23 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
         public class GenericNonRelationship : NonRelationshipTestBase
         {
+            protected override TestModelBuilder CreateTestModelBuilder(TestHelpers testHelpers)
+                => new GenericTestModelBuilder(testHelpers);
+
+            [Fact]
+            public virtual void Changing_propertyInfo_updates_Property()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Entity<DoubleProperty>().Property(e => ((IReplacable)e).Property);
+
+                modelBuilder.Validate();
+
+                var property = modelBuilder.Model.FindEntityType(typeof(DoubleProperty)).GetProperty("Property");
+                Assert.True(property.GetIdentifyingMemberInfo().Name
+                    .EndsWith(typeof(IReplacable).Name + "." + nameof(IReplacable.Property)));
+            }
+
             [Fact]
             public virtual void Can_add_ignore_explicit_interface_implementation_property()
             {
@@ -72,9 +89,6 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 Assert.Equal(1, modelBuilder.Model.FindEntityType(typeof(EntityBase)).GetProperties().Count());
             }
-
-            protected override TestModelBuilder CreateTestModelBuilder(TestHelpers testHelpers)
-                => new GenericTestModelBuilder(testHelpers);
         }
 
         public class GenericInheritance : InheritanceTestBase
@@ -135,6 +149,12 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
             public override TestQueryTypeBuilder<TQuery> Query<TQuery>()
                 => new GenericTestQueryTypeBuilder<TQuery>(ModelBuilder.Query<TQuery>());
+
+            public override TestModelBuilder Query<TQuery>(Action<TestQueryTypeBuilder<TQuery>> buildAction)
+            {
+                ModelBuilder.Query<TQuery>(queryTypeBuilder => buildAction(new GenericTestQueryTypeBuilder<TQuery>(queryTypeBuilder)));
+                return this;
+            }
 
             public override TestModelBuilder Ignore<TEntity>()
             {
