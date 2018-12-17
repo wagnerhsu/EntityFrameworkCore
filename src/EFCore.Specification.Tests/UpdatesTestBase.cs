@@ -21,7 +21,7 @@ namespace Microsoft.EntityFrameworkCore
         protected TFixture Fixture { get; }
 
         [Fact]
-        public virtual void Mutation_of_tracked_byte_array_values_does_not_mutate_values_in_store()
+        public virtual void Mutation_of_tracked_values_does_not_mutate_values_in_store()
         {
             var id1 = Guid.NewGuid();
             var id2 = Guid.NewGuid();
@@ -34,12 +34,12 @@ namespace Microsoft.EntityFrameworkCore
                         new AFewBytes()
                         {
                             Id = id1,
-                            Bytes = bytes
+                            Bytes = bytes,
                         },
                         new AFewBytes()
                         {
                             Id = id2,
-                            Bytes = bytes
+                            Bytes = bytes,
                         });
 
                     context.SaveChanges();
@@ -60,7 +60,6 @@ namespace Microsoft.EntityFrameworkCore
                     context.Entry(fromStore1).State = EntityState.Modified;
 
                     context.SaveChanges();
-
                 },
                 context =>
                 {
@@ -184,10 +183,7 @@ namespace Microsoft.EntityFrameworkCore
                     Assert.Throws<DbUpdateConcurrencyException>(
                         () => context.SaveChanges());
                 },
-                context =>
-                {
-                    Assert.Equal("MegaChips", context.ProductWithBytes.Find(productId).Name);
-                });
+                context => Assert.Equal("MegaChips", context.ProductWithBytes.Find(productId).Name));
         }
 
 #if !Test21
@@ -223,10 +219,7 @@ namespace Microsoft.EntityFrameworkCore
 
                     Assert.Equal(1, context.SaveChanges());
                 },
-                context =>
-                {
-                    Assert.Equal("GigaChips", context.ProductWithBytes.Find(productId).Name);
-                });
+                context => Assert.Equal("GigaChips", context.ProductWithBytes.Find(productId).Name));
         }
 #endif
 
@@ -263,10 +256,7 @@ namespace Microsoft.EntityFrameworkCore
                     Assert.Throws<DbUpdateConcurrencyException>(
                         () => context.SaveChanges());
                 },
-                context =>
-                {
-                    Assert.Equal("MegaChips", context.ProductWithBytes.Find(productId).Name);
-                });
+                context => Assert.Equal("MegaChips", context.ProductWithBytes.Find(productId).Name));
         }
 
 #if !Test21
@@ -302,10 +292,7 @@ namespace Microsoft.EntityFrameworkCore
 
                     Assert.Equal(1, context.SaveChanges());
                 },
-                context =>
-                {
-                    Assert.Null(context.ProductWithBytes.Find(productId));
-                });
+                context => Assert.Null(context.ProductWithBytes.Find(productId)));
         }
 #endif
 

@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Reflection;
@@ -198,8 +197,6 @@ namespace Microsoft.EntityFrameworkCore
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
-                modelBuilder.Entity<Parent>();
-
                 modelBuilder
                     .Entity<NumNum>()
                     .Property(e => e.Id)
@@ -227,21 +224,6 @@ namespace Microsoft.EntityFrameworkCore
                     .Property(e => e.Id)
                     .HasColumnType("numeric(18, 0)");
             }
-        }
-        public class Parent
-        {
-            [Key()]
-            public Guid ParentGUID { get; set; }
-            public string SomeValue { get; set; }
-            [ForeignKey("ReferenceTypeGUID")]
-            public ReferenceType ReferenceTypeObject { get; set; }
-        }
-        public class ReferenceType
-        {
-            [Key()]
-            public Guid ReferenceTypeGUID { get; set; }
-            public string SomeOtherValue { get; set; }
-            public virtual ICollection<Parent> ParentGU { get; set; }
         }
 
         private class NownNum
@@ -351,6 +333,42 @@ namespace Microsoft.EntityFrameworkCore
 
                     Assert.Equal(bNum1.Id, context.BNums.Single(e => e.TheWalrus == "Eggman").Id);
                     Assert.Equal(bNum2.Id, context.BNums.Single(e => e.TheWalrus == "Eggmen").Id);
+                }
+            }
+        }
+
+        [Fact]
+        public void Can_remove_multiple_byte_array_as_key()
+        {
+            using (var testDatabase = SqlServerTestStore.CreateInitialized(DatabaseName))
+            {
+                var bNum1 = new BNum
+                {
+                    TheWalrus = "Eggman"
+                };
+                var bNum2 = new BNum
+                {
+                    TheWalrus = "Eggmen"
+                };
+
+                var options = Fixture.CreateOptions(testDatabase);
+                using (var context = new ENumContext(options))
+                {
+                    context.Database.EnsureCreatedResiliently();
+
+                    context.AddRange(bNum1, bNum2);
+
+                    context.SaveChanges();
+                }
+
+                using (var context = new ENumContext(options))
+                {
+                    Assert.Equal(bNum1.Id, context.BNums.Single(e => e.TheWalrus == "Eggman").Id);
+                    Assert.Equal(bNum2.Id, context.BNums.Single(e => e.TheWalrus == "Eggmen").Id);
+
+                    context.RemoveRange(context.BNums);
+
+                    context.SaveChanges();
                 }
             }
         }
@@ -524,17 +542,17 @@ namespace Microsoft.EntityFrameworkCore
                     Assert.Contains("INSERT", Fixture.TestSqlLoggerFactory.SqlStatements[4]);
 
                     var rows = await testDatabase.ExecuteScalarAsync<int>(
-                        $@"SELECT Count(*) FROM [dbo].[Blog] WHERE Id = {updatedId} AND Name = 'Blog is Updated'");
+                        $"SELECT Count(*) FROM [dbo].[Blog] WHERE Id = {updatedId} AND Name = 'Blog is Updated'");
 
                     Assert.Equal(1, rows);
 
                     rows = await testDatabase.ExecuteScalarAsync<int>(
-                        $@"SELECT Count(*) FROM [dbo].[Blog] WHERE Id = {deletedId}");
+                        $"SELECT Count(*) FROM [dbo].[Blog] WHERE Id = {deletedId}");
 
                     Assert.Equal(0, rows);
 
                     rows = await testDatabase.ExecuteScalarAsync<int>(
-                        $@"SELECT Count(*) FROM [dbo].[Blog] WHERE Id = {addedId} AND Name = 'Blog to Insert'");
+                        $"SELECT Count(*) FROM [dbo].[Blog] WHERE Id = {addedId} AND Name = 'Blog to Insert'");
 
                     Assert.Equal(1, rows);
                 }

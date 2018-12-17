@@ -28,15 +28,24 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Query.ExpressionTranslators.Inter
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
-        public Expression Translate(MemberExpression memberExpression)
+        public virtual Expression Translate(MemberExpression memberExpression)
         {
             var member = memberExpression.Member.OnInterface(typeof(ICurve));
             if (_memberToFunctionName.TryGetValue(member, out var functionName))
             {
-                return new SqlFunctionExpression(
+                Expression newExpression = new SqlFunctionExpression(
                     functionName,
                     memberExpression.Type,
                     new[] { memberExpression.Expression });
+                if (memberExpression.Type == typeof(bool))
+                {
+                    newExpression = new CaseExpression(
+                        new CaseWhenClause(
+                            Expression.Not(new IsNullExpression(memberExpression.Expression)),
+                            newExpression));
+                }
+
+                return newExpression;
             }
 
             return null;

@@ -2,9 +2,15 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Data.Common;
+using System.Reflection;
+using System.Text;
+using GeoAPI;
+using GeoAPI.Geometries;
+using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Sqlite.Storage.ValueConversion.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.IO;
 
 namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
@@ -13,32 +19,32 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
     ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
     /// </summary>
-    public class SqliteGeometryTypeMapping : RelationalTypeMapping
+    public class SqliteGeometryTypeMapping<TGeometry> : RelationalGeometryTypeMapping<TGeometry, byte[]>
+        where TGeometry : IGeometry
     {
-        private readonly GaiaGeoReader _reader;
+        private static readonly MethodInfo _getBytes
+            = typeof(DbDataReader).GetTypeInfo()
+                .GetDeclaredMethod(nameof(DbDataReader.GetFieldValue))
+                .MakeGenericMethod(typeof(byte[]));
 
         /// <summary>
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
-        public SqliteGeometryTypeMapping(Type clrType, GaiaGeoReader reader, string storeType)
-            : base(
-                  new RelationalTypeMappingParameters(
-                      new CoreTypeMappingParameters(
-                          clrType,
-                          new GeometryValueConverter(clrType, reader),
-                          new GeometryValueComparer(clrType)),
-                      storeType))
+        [UsedImplicitly]
+        public SqliteGeometryTypeMapping(IGeometryServices geometryServices, string storeType)
+            : base(new GeometryValueConverter<TGeometry>(CreateReader(geometryServices), CreateWriter()), storeType)
         {
-            _reader = reader;
         }
 
         /// <summary>
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
-        protected SqliteGeometryTypeMapping(RelationalTypeMappingParameters parameters)
-            : base(parameters)
+        protected SqliteGeometryTypeMapping(
+            RelationalTypeMappingParameters parameters,
+                ValueConverter<TGeometry, byte[]> converter)
+            : base(parameters, converter)
         {
         }
 
@@ -47,7 +53,7 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
-            => new SqliteGeometryTypeMapping(parameters);
+            => new SqliteGeometryTypeMapping<TGeometry>(parameters, SpatialConverter);
 
         /// <summary>
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
@@ -55,16 +61,60 @@ namespace Microsoft.EntityFrameworkCore.Sqlite.Storage.Internal
         /// </summary>
         protected override string GenerateNonNullSqlLiteral(object value)
         {
-            // TODO: Avoid converting in the first place
-            var geometry = _reader.Read((byte[])value);
-            var srid = geometry.SRID;
+            var builder = new StringBuilder();
+            var geometry = (IGeometry)value;
 
-            // TODO: This won't emit M (see NetTopologySuite/NetTopologySuite#156)
-            var text = "'" + geometry.AsText() + "'";
+            builder
+                .Append("GeomFromText('")
+                .Append(geometry.AsText())
+                .Append("'");
 
-            return srid > 0
-                ? $"GeomFromText({text}, {srid})"
-                : $"GeomFromText({text})";
+            if (geometry.SRID != 0)
+            {
+                builder
+                    .Append(", ")
+                    .Append(geometry.SRID);
+            }
+
+            builder.Append(")");
+
+            return builder.ToString();
         }
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        public override MethodInfo GetDataReaderMethod()
+            => _getBytes;
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        protected override string AsText(object value)
+            => ((IGeometry)value).AsText();
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        protected override int GetSrid(object value)
+            => ((IGeometry)value).SRID;
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
+        protected override Type WKTReaderType
+            => typeof(WKTReader);
+
+        private static GaiaGeoReader CreateReader(IGeometryServices geometryServices)
+            => new GaiaGeoReader(
+                geometryServices.DefaultCoordinateSequenceFactory,
+                geometryServices.DefaultPrecisionModel);
+
+        private static GaiaGeoWriter CreateWriter()
+            => new GaiaGeoWriter();
     }
 }

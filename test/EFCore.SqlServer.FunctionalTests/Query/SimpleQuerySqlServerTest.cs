@@ -36,6 +36,20 @@ FROM [Customers] AS [e]
 WHERE [e].[CustomerID] = N'ALFKI'");
         }
 
+        public override void Can_convert_manually_build_expression_with_default()
+        {
+            base.Can_convert_manually_build_expression_with_default();
+
+            AssertSql(
+                @"SELECT COUNT(*)
+FROM [Customers] AS [c]
+WHERE [c].[CustomerID] IS NOT NULL",
+                //
+                @"SELECT COUNT(*)
+FROM [Customers] AS [c]
+WHERE [c].[CustomerID] IS NOT NULL");
+        }
+
         public override void Lifting_when_subquery_nested_order_by_anonymous()
         {
             base.Lifting_when_subquery_nested_order_by_anonymous();
@@ -172,7 +186,7 @@ WHERE [c].[CustomerID] = @__local_0_CustomerID");
             await base.Join_with_entity_equality_local_on_both_sources(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Entity_equality_local_inline(bool isAsync)
@@ -235,7 +249,7 @@ LEFT JOIN (
             await base.Join_with_default_if_empty_on_both_sources(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Default_if_empty_top_level_followed_by_projecting_constant(bool isAsync)
@@ -243,7 +257,7 @@ LEFT JOIN (
             await base.Default_if_empty_top_level_followed_by_projecting_constant(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Default_if_empty_top_level_positive(bool isAsync)
@@ -272,13 +286,12 @@ FROM [Employees] AS [c]
 WHERE [c].[EmployeeID] = -1");
         }
 
-
         public override async Task Default_if_empty_top_level_arg_followed_by_projecting_constant(bool isAsync)
         {
             await base.Default_if_empty_top_level_arg_followed_by_projecting_constant(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         public override async Task Default_if_empty_top_level_projection(bool isAsync)
@@ -633,6 +646,7 @@ SELECT [t].[OrderID], [t].[CustomerID], [t].[EmployeeID], [t].[OrderDate]
 FROM (
     SELECT TOP(@__p_0) [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
     FROM [Orders] AS [o]
+    ORDER BY [o].[OrderID]
 ) AS [t]
 ORDER BY [t].[OrderID]",
                 //
@@ -904,7 +918,7 @@ OFFSET @__p_0 ROWS FETCH NEXT @__p_1 ROWS ONLY");
             await base.Join_Customers_Orders_Skip_Take_followed_by_constant_projection(isAsync);
 
             AssertSql(
-                @"");
+                "");
         }
 
         [SqlServerCondition(SqlServerCondition.SupportsOffset)]
@@ -1886,6 +1900,19 @@ ORDER BY [t].[CustomerID]
 OFFSET @__p_0 ROWS");
         }
 
+        public override async Task Ternary_should_not_evaluate_both_sides(bool isAsync)
+        {
+            await base.Ternary_should_not_evaluate_both_sides(isAsync);
+
+            AssertSql(
+                @"@__p_0='none' (Size = 4000)
+@__p_1='none' (Size = 4000)
+@__p_2='none' (Size = 4000)
+
+SELECT [c].[CustomerID], @__p_0 AS [Data1], @__p_1 AS [Data2], @__p_2 AS [Data3]
+FROM [Customers] AS [c]");
+        }
+
         [SqlServerCondition(SqlServerCondition.SupportsOffset)]
         public override async Task Distinct_Skip_Take(bool isAsync)
         {
@@ -2437,7 +2464,8 @@ WHERE [o].[CustomerID] = @_outer_CustomerID");
                 @"@__p_0='3'
 
 SELECT TOP(@__p_0) [c].[CustomerID]
-FROM [Customers] AS [c]",
+FROM [Customers] AS [c]
+ORDER BY [c].[CustomerID]",
                 //
                 @"SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
 FROM [Orders] AS [o]",
@@ -3001,6 +3029,57 @@ FROM [Orders] AS [o]");
         public override async Task Subquery_member_pushdown_does_not_change_original_subquery_model(bool isAsync)
         {
             await base.Subquery_member_pushdown_does_not_change_original_subquery_model(isAsync);
+
+            AssertSql(
+                @"@__p_0='3'
+
+SELECT [t].[CustomerID], [t].[OrderID]
+FROM (
+    SELECT TOP(@__p_0) [o].*
+    FROM [Orders] AS [o]
+    ORDER BY [o].[OrderID]
+) AS [t]",
+                //
+                @"@_outer_CustomerID='VINET' (Size = 5)
+
+SELECT TOP(2) [c0].[City]
+FROM [Customers] AS [c0]
+WHERE [c0].[CustomerID] = @_outer_CustomerID",
+                //
+                @"@_outer_CustomerID='TOMSP' (Size = 5)
+
+SELECT TOP(2) [c0].[City]
+FROM [Customers] AS [c0]
+WHERE [c0].[CustomerID] = @_outer_CustomerID",
+                //
+                @"@_outer_CustomerID='HANAR' (Size = 5)
+
+SELECT TOP(2) [c0].[City]
+FROM [Customers] AS [c0]
+WHERE [c0].[CustomerID] = @_outer_CustomerID",
+                //
+                @"@_outer_CustomerID1='TOMSP' (Size = 5)
+
+SELECT TOP(2) [c2].[City]
+FROM [Customers] AS [c2]
+WHERE [c2].[CustomerID] = @_outer_CustomerID1",
+                //
+                @"@_outer_CustomerID1='VINET' (Size = 5)
+
+SELECT TOP(2) [c2].[City]
+FROM [Customers] AS [c2]
+WHERE [c2].[CustomerID] = @_outer_CustomerID1",
+                //
+                @"@_outer_CustomerID1='HANAR' (Size = 5)
+
+SELECT TOP(2) [c2].[City]
+FROM [Customers] AS [c2]
+WHERE [c2].[CustomerID] = @_outer_CustomerID1");
+        }
+
+        public override async Task Subquery_member_pushdown_does_not_change_original_subquery_model2(bool isAsync)
+        {
+            await base.Subquery_member_pushdown_does_not_change_original_subquery_model2(isAsync);
 
             AssertSql(
                 @"@__p_0='3'

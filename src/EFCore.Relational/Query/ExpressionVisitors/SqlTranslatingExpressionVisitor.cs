@@ -370,12 +370,15 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors
                             _querySource = qs;
                             _propertyName = p.Name;
 
-                            if ((_queryModelVisitor.QueryCompilationContext.FindEntityType(_querySource)
-                                 ?? _queryModelVisitor.QueryCompilationContext.Model.FindEntityType(_querySource.ItemType))
-                                ?.FindProperty(_propertyName)?.IsPrimaryKey()
-                                ?? false)
+                            if (_querySource != null)
                             {
-                                _propertyName = null;
+                                if ((_queryModelVisitor.QueryCompilationContext.FindEntityType(_querySource)
+                                     ?? _queryModelVisitor.QueryCompilationContext.Model.FindEntityType(_querySource.ItemType))
+                                    ?.FindProperty(_propertyName)?.IsPrimaryKey()
+                                    ?? false)
+                                {
+                                    _propertyName = null;
+                                }
                             }
                         });
                 }
@@ -873,7 +876,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors
             Check.NotNull(expression, nameof(expression));
 
             if (expression.Members != null
-                && expression.Arguments.Any()
+                && expression.Arguments.Count > 0
                 && expression.Arguments.Count == expression.Members.Count)
             {
                 var memberBindings

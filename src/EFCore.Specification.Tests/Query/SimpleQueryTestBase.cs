@@ -33,6 +33,9 @@ using Xunit;
 // ReSharper disable ReplaceWithSingleCallToCount
 // ReSharper disable StringStartsWithIsCultureSpecific
 // ReSharper disable AccessToModifiedClosure
+
+#pragma warning disable RCS1202 // Avoid NullReferenceException.
+
 namespace Microsoft.EntityFrameworkCore.Query
 {
     public abstract partial class SimpleQueryTestBase<TFixture> : QueryTestBase<TFixture>
@@ -294,6 +297,29 @@ namespace Microsoft.EntityFrameworkCore.Query
             }
         }
 
+        [ConditionalFact] // See issue #12771
+        public virtual void Can_convert_manually_build_expression_with_default()
+        {
+            using (var context = CreateContext())
+            {
+                var parameter = Expression.Parameter(typeof(Customer));
+                var defaultExpression =
+                    Expression.Lambda<Func<Customer, bool>>(
+                        Expression.NotEqual(
+                            Expression.Property(
+                                parameter,
+                                "CustomerID"),
+                            Expression.Default(typeof(string))),
+                        parameter);
+
+                // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
+                context.Set<Customer>().Where(defaultExpression).Count();
+
+                // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
+                context.Set<Customer>().Count(defaultExpression);
+            }
+        }
+
         // ReSharper disable once ClassNeverInstantiated.Local
         private static class InMemoryCheck
         {
@@ -407,7 +433,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                         new NullConditionalExpression(c, Expression.Property(c, "CustomerID")),
                         Expression.Constant("ALFKI")),
                     c);
-
 
             return AssertQuery<Customer>(
                 isAsync,
@@ -698,6 +723,24 @@ namespace Microsoft.EntityFrameworkCore.Query
                          ContactNameB = cb.ContactName
                      }).Skip(10).Take(5),
                 e => e.OrderID);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Ternary_should_not_evaluate_both_sides(bool isAsync)
+        {
+            Customer customer = null;
+            bool hasData = !(customer is null);
+
+            return AssertQuery<Customer>(
+                isAsync,
+                cs => cs.Select(c => new
+                {
+                    c.CustomerID,
+                    Data1 = hasData ? customer.CustomerID : "none",
+                    Data2 = customer != null ? customer.CustomerID : "none",
+                    Data3 = !hasData ? "none" : customer.CustomerID
+                }));
         }
 
         [ConditionalTheory]
@@ -1268,7 +1311,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                 entryCount: 19);
         }
 
-
         [Theory(Skip = "issue #8956")]
         [MemberData(nameof(IsAsyncData))]
         public virtual Task Where_subquery_anon(bool isAsync)
@@ -1617,8 +1659,8 @@ namespace Microsoft.EntityFrameworkCore.Query
             return AssertQuery<Customer, Order>(
                 isAsync,
                 (cs, os) =>
-                    from c in cs.Take(3)
-                    select os.OrderBy(o => c.CustomerID).Skip(100).Take(2),
+                    from c in cs.OrderBy(c => c.CustomerID).Take(3)
+                    select os.OrderBy(o => o.OrderID).ThenBy(o => c.CustomerID).Skip(100).Take(2),
                 elementSorter: CollectionSorter<Order>(),
                 elementAsserter: CollectionAsserter<Order>());
         }
@@ -1843,12 +1885,12 @@ namespace Microsoft.EntityFrameworkCore.Query
                 isAsync,
                 es =>
                     from e1 in es.Take(3)
-                    where e1.FirstName ==
-                          (from e2 in es.OrderBy(e => e.EmployeeID)
-                           select new
-                           {
-                               Foo = e2
-                           })
+                    where e1.FirstName
+                          == (from e2 in es.OrderBy(e => e.EmployeeID)
+                              select new
+                              {
+                                  Foo = e2
+                              })
                           .First().Foo.FirstName
                     select e1,
                 entryCount: 1);
@@ -1862,9 +1904,9 @@ namespace Microsoft.EntityFrameworkCore.Query
                 isAsync,
                 es =>
                     from e1 in es.Take(3)
-                    where e1.FirstName ==
-                          (from e2 in es.OrderBy(e => e.EmployeeID)
-                           select e2)
+                    where e1.FirstName
+                          == (from e2 in es.OrderBy(e => e.EmployeeID)
+                              select e2)
                           .FirstOrDefault().FirstName
                     select e1,
                 entryCount: 1);
@@ -1878,12 +1920,12 @@ namespace Microsoft.EntityFrameworkCore.Query
                 isAsync,
                 es =>
                     from e1 in es.Take(3)
-                    where e1.FirstName ==
-                          (from e2 in es.OrderBy(e => e.EmployeeID)
-                           select new
-                           {
-                               Foo = e2
-                           })
+                    where e1.FirstName
+                          == (from e2 in es.OrderBy(e => e.EmployeeID)
+                              select new
+                              {
+                                  Foo = e2
+                              })
                           .FirstOrDefault().Foo.FirstName
                     select e1,
                 entryCount: 1);
@@ -1941,8 +1983,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                 isAsync,
                 cs =>
                     from c1 in cs
-                    where c1.IsLondon ==
-                          cs.OrderBy(c => c.CustomerID)
+                    where c1.IsLondon
+                          == cs.OrderBy(c => c.CustomerID)
                               .Select(
                                   c => new
                                   {
@@ -3423,7 +3465,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             using (var context = CreateContext())
             {
                 var orders
-                    = (from o in context.Orders.Take(1)
+                    = (from o in context.Orders.OrderBy(o => o.OrderID).Take(1)
                            // ReSharper disable once UseMethodAny.0
                        where (from od in context.OrderDetails.OrderBy(od => od.OrderID).Take(2)
                               where (from c in context.Set<Customer>()
@@ -3923,6 +3965,25 @@ namespace Microsoft.EntityFrameworkCore.Query
                             {
                                 OrderId = o.OrderID,
                                 cs.SingleOrDefault(c => c.CustomerID == o.CustomerID).City
+                            })
+                        .OrderBy(o => o.City),
+                assertOrder: true);
+        }
+
+        [ConditionalTheory]
+        [MemberData(nameof(IsAsyncData))]
+        public virtual Task Subquery_member_pushdown_does_not_change_original_subquery_model2(bool isAsync)
+        {
+            return AssertQuery<Order, Customer>(
+                isAsync,
+                (os, cs) =>
+                    os.OrderBy(o => o.OrderID)
+                        .Take(3)
+                        .Select(
+                            o => new
+                            {
+                                OrderId = o.OrderID,
+                                City = EF.Property<string>(cs.SingleOrDefault(c => c.CustomerID == o.CustomerID), "City")
                             })
                         .OrderBy(o => o.City),
                 assertOrder: true);
@@ -5283,8 +5344,6 @@ namespace Microsoft.EntityFrameworkCore.Query
                     },
                 e => e.Id1 + " " + e.Id2);
         }
-
-
 
         [Theory(Skip = "issue #8366")]
         [MemberData(nameof(IsAsyncData))]

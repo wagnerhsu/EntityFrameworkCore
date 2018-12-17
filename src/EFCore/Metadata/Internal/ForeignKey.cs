@@ -271,13 +271,21 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             ConfigurationSource configurationSource,
             bool pointsToPrincipal)
         {
-            if (PrincipalEntityType.IsQueryType)
+            var name = propertyIdentity?.Name;
+            if (pointsToPrincipal
+                && PrincipalEntityType.IsQueryType)
             {
                 throw new InvalidOperationException(
-                    CoreStrings.ErrorNavCannotTargetQueryType(PrincipalEntityType.DisplayName()));
+                    CoreStrings.NavigationToQueryType(name, PrincipalEntityType.DisplayName()));
             }
 
-            var name = propertyIdentity?.Name;
+            if (!pointsToPrincipal
+                && DeclaringEntityType.IsQueryType)
+            {
+                throw new InvalidOperationException(
+                    CoreStrings.NavigationToQueryType(name, DeclaringEntityType.DisplayName()));
+            }
+
             var oldNavigation = pointsToPrincipal ? DependentToPrincipal : PrincipalToDependent;
             if (name == oldNavigation?.Name)
             {
@@ -432,7 +440,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             if (!required)
             {
                 var nullableTypeProperties = Properties.Where(p => p.ClrType.IsNullableType()).ToList();
-                if (nullableTypeProperties.Any())
+                if (nullableTypeProperties.Count > 0)
                 {
                     properties = nullableTypeProperties;
                 }
@@ -746,7 +754,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             }
 
             var nullableProperties = properties.Where(p => p.ClrType.IsNullableType()).ToList();
-            if (!nullableProperties.Any())
+            if (nullableProperties.Count == 0)
             {
                 if (shouldThrow)
                 {

@@ -105,7 +105,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
                         || !methodInfo.GetGenericMethodDefinition()
                             .Equals(EntityFrameworkQueryableExtensions.StringIncludeMethodInfo))
                     && !methodInfo.GetGenericMethodDefinition()
-                        .Equals(EntityFrameworkQueryableExtensions.WithTagMethodInfo)))
+                        .Equals(EntityFrameworkQueryableExtensions.TagWithMethodInfo)))
             {
                 return base.VisitMethodCall(methodCallExpression);
             }
@@ -298,6 +298,20 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
         ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
+        protected override Expression VisitConditional(ConditionalExpression conditionalExpression)
+        {
+            if (_partialEvaluationInfo.IsEvaluatableExpression(conditionalExpression))
+            {
+                return TryExtractParameter(conditionalExpression);
+            }
+
+            return base.VisitConditional(conditionalExpression);
+        }
+
+        /// <summary>
+        ///     This API supports the Entity Framework Core infrastructure and is not intended to be used
+        ///     directly from your code. This API may change or be removed in future releases.
+        /// </summary>
         protected override Expression VisitConstant(ConstantExpression constantExpression)
         {
             var value = constantExpression.Value;
@@ -446,8 +460,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
 
             var parameterValue = Evaluate(expression, out var parameterName);
 
-            if (parameterName == null
-                || !parameterName.StartsWith(QueryFilterPrefix, StringComparison.Ordinal))
+            if (parameterName?.StartsWith(QueryFilterPrefix, StringComparison.Ordinal) != true)
             {
                 if (parameterValue is Expression valueExpression)
                 {
@@ -502,8 +515,7 @@ namespace Microsoft.EntityFrameworkCore.Query.ExpressionVisitors.Internal
 
             public override Expression Visit(Expression expression)
             {
-                return expression != null
-                    && expression.Type.GetTypeInfo().IsAssignableFrom(_contextType)
+                return expression?.Type.GetTypeInfo().IsAssignableFrom(_contextType) == true
                     ? ContextParameterExpression
                     : base.Visit(expression);
             }

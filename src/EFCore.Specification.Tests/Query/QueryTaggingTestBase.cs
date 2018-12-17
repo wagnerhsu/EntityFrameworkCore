@@ -26,7 +26,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                 var customer
                     = context.Set<Customer>()
                         .OrderBy(c => c.CustomerID)
-                        .WithTag("Yanni")
+                        .TagWith("Yanni")
                         .First();
 
                 Assert.NotNull(customer);
@@ -41,8 +41,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                 var customer
                     = context.Set<Customer>()
                         .OrderBy(c => c.CustomerID)
-                        .WithTag("Yanni")
-                        .WithTag("Enya")
+                        .TagWith("Yanni")
+                        .TagWith("Enya")
                         .First();
 
                 Assert.NotNull(customer);
@@ -57,8 +57,8 @@ namespace Microsoft.EntityFrameworkCore.Query
                 var customer
                     = context.Set<Customer>()
                         .OrderBy(c => c.CustomerID)
-                        .WithTag("Yanni")
-                        .WithTag("Yanni")
+                        .TagWith("Yanni")
+                        .TagWith("Yanni")
                         .First();
 
                 Assert.NotNull(customer);
@@ -71,8 +71,8 @@ namespace Microsoft.EntityFrameworkCore.Query
             using (var context = CreateContext())
             {
                 var customers
-                    = (from c in context.Set<Customer>().Where(c => c.CustomerID == "ALFKI").AsNoTracking().WithTag("Yanni")
-                       from o in context.Orders.OrderBy(o => o.OrderID).Take(5).WithTag("Laurel")
+                    = (from c in context.Set<Customer>().Where(c => c.CustomerID == "ALFKI").AsNoTracking().TagWith("Yanni")
+                       from o in context.Orders.OrderBy(o => o.OrderID).Take(5).TagWith("Laurel")
                        select c).ToList();
 
                 Assert.Equal(5, customers.Count);
@@ -88,7 +88,80 @@ namespace Microsoft.EntityFrameworkCore.Query
                     = context.Set<Customer>()
                         .Include(c => c.Orders)
                         .OrderBy(c => c.CustomerID)
-                        .WithTag("Yanni")
+                        .TagWith("Yanni")
+                        .First();
+
+                Assert.NotNull(customer);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Tag_on_scalar_query()
+        {
+            using (var context = CreateContext())
+            {
+                var customer
+                    = context.Set<Order>()
+                        .OrderBy(o => o.OrderID)
+                        .Select(o => o.OrderDate)
+                        .TagWith("Yanni")
+                        .First();
+
+                Assert.NotNull(customer);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Single_query_multiline_tag()
+        {
+            using (var context = CreateContext())
+            {
+                var customer
+                    = context.Set<Customer>()
+                        .OrderBy(c => c.CustomerID)
+                        .TagWith(@"Yanni
+AND
+Laurel")
+                        .First();
+
+                Assert.NotNull(customer);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Single_query_multiple_multiline_tag()
+        {
+            using (var context = CreateContext())
+            {
+                var customer
+                    = context.Set<Customer>()
+                        .OrderBy(c => c.CustomerID)
+                        .TagWith(@"Yanni
+AND
+Laurel")
+                        .TagWith(@"Yet
+Another
+Multiline
+Tag")
+                        .First();
+
+                Assert.NotNull(customer);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Single_query_multiline_tag_with_empty_lines()
+        {
+            using (var context = CreateContext())
+            {
+                var customer
+                    = context.Set<Customer>()
+                        .OrderBy(c => c.CustomerID)
+                        .TagWith(@"Yanni
+
+AND
+
+Laurel")
                         .First();
 
                 Assert.NotNull(customer);

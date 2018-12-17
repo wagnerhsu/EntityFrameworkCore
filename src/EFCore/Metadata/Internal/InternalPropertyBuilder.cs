@@ -67,8 +67,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         public virtual bool CanSetRequired(bool isRequired, ConfigurationSource? configurationSource)
             => ((Metadata.IsNullable == !isRequired)
-                || (configurationSource.HasValue &&
-                    configurationSource.Value.Overrides(Metadata.GetIsNullableConfigurationSource())))
+                || (configurationSource.HasValue
+                    && configurationSource.Value.Overrides(Metadata.GetIsNullableConfigurationSource())))
                && (isRequired
                    || Metadata.ClrType.IsNullableType()
                    || (configurationSource == ConfigurationSource.Explicit)); // let it throw for Explicit
@@ -135,7 +135,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         public virtual bool HasField([CanBeNull] string fieldName, ConfigurationSource configurationSource)
         {
-            if (Metadata.FieldInfo?.Name == fieldName)
+            if (Metadata.FieldInfo?.GetSimpleMemberName() == fieldName)
             {
                 Metadata.SetField(fieldName, configurationSource);
                 return true;

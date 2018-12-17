@@ -374,8 +374,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
 
             if (source == null)
             {
-                if (targetMigrationsAnnotations != null
-                    && targetMigrationsAnnotations.Count > 0)
+                if (targetMigrationsAnnotations?.Count > 0)
                 {
                     var alterDatabaseOperation = new AlterDatabaseOperation();
                     alterDatabaseOperation.AddAnnotations(targetMigrationsAnnotations);
@@ -623,6 +622,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
         private static IEnumerable<IProperty> GetSortedProperties(IEntityType entityType)
         {
             var shadowProperties = new List<IProperty>();
+            var shadowPrimaryKeyProperties = new List<IProperty>();
+            var primaryKeyPropertyGroups = new Dictionary<PropertyInfo, IProperty>();
             var groups = new Dictionary<PropertyInfo, List<IProperty>>();
             var unorderedGroups = new Dictionary<PropertyInfo, SortedDictionary<int, IProperty>>();
             var types = new Dictionary<Type, SortedDictionary<int, PropertyInfo>>();
@@ -632,6 +633,13 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                 var clrProperty = property.PropertyInfo;
                 if (clrProperty == null)
                 {
+                    if (property.IsPrimaryKey())
+                    {
+                        shadowPrimaryKeyProperties.Add(property);
+
+                        continue;
+                    }
+
                     var foreignKey = property.GetContainingForeignKeys()
                         .FirstOrDefault(fk => fk.DependentToPrincipal?.PropertyInfo != null);
                     if (foreignKey == null)
@@ -648,6 +656,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                 }
                 else
                 {
+                    if (property.IsPrimaryKey())
+                    {
+                        primaryKeyPropertyGroups.Add(clrProperty, property);
+                    }
+
                     groups.Add(
                         clrProperty, new List<IProperty>
                         {
@@ -705,8 +718,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                 {
                     foreach (var right in types.Keys)
                     {
-                        if (right == baseType
-                            && baseType != left)
+                        if (right == baseType)
                         {
                             graph.AddEdge(right, left, null);
                             found = true;
@@ -722,7 +734,13 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                 }
             }
 
-            return graph.TopologicalSort().SelectMany(t => types[t].Values).SelectMany(p => groups[p])
+            var sortedPropertyInfos = graph.TopologicalSort().SelectMany(e => types[e].Values).ToList();
+
+            return sortedPropertyInfos
+                .Select(pi => primaryKeyPropertyGroups.ContainsKey(pi) ? primaryKeyPropertyGroups[pi] : null)
+                .Where(e => e != null)
+                .Concat(shadowPrimaryKeyProperties)
+                .Concat(sortedPropertyInfos.Where(pi => !primaryKeyPropertyGroups.ContainsKey(pi)).SelectMany(p => groups[p]))
                 .Concat(shadowProperties)
                 .Concat(entityType.GetDirectlyDerivedTypes().SelectMany(GetSortedProperties));
         }
@@ -1627,8 +1645,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
 
                             var modelValuesChanged
                                 = sourceProperty.ClrType.UnwrapNullableType() == targetProperty.ClrType.UnwrapNullableType()
-                                  && comparer != null
-                                  && !comparer.Equals(sourceValue, targetValue);
+                                  && comparer?.Equals(sourceValue, targetValue) == false;
 
                             if (!modelValuesChanged)
                             {
@@ -1702,7 +1719,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
             }
         }
 
-        private static InternalEntityEntry GetEntry(IDictionary<string, object> sourceSeed, IEntityType sourceEntityType, IStateManager stateManager)
+        private static InternalEntityEntry GetEntry(
+            IDictionary<string, object> sourceSeed, IEntityType sourceEntityType, IStateManager stateManager)
         {
             var key = sourceEntityType.FindPrimaryKey();
             var keyValues = new object[key.Properties.Count];
@@ -1774,8 +1792,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                             {
                                 Schema = c.Schema,
                                 Table = c.TableName,
-                                Columns = c.ColumnModifications.Select(col => col.ColumnName).ToArray(),
-                                Values = ToMultidimensionalArray(c.ColumnModifications.Select(GetValue).ToList())
+                                Columns = c.ColumnModifications.Where(col => col.IsKey || col.IsWrite).Select(col => col.ColumnName).ToArray(),
+                                Values = ToMultidimensionalArray(
+                                    c.ColumnModifications.Where(col => col.IsKey || col.IsWrite).Select(GetValue).ToList())
                             };
                         }
                         else if (c.EntityState == EntityState.Modified)
@@ -1791,9 +1810,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                                 Schema = c.Schema,
                                 Table = c.TableName,
                                 KeyColumns = c.ColumnModifications.Where(col => col.IsKey).Select(col => col.ColumnName).ToArray(),
-                                KeyValues = ToMultidimensionalArray(c.ColumnModifications.Where(col => col.IsKey).Select(GetValue).ToList()),
-                                Columns = c.ColumnModifications.Where(col => !col.IsKey).Select(col => col.ColumnName).ToArray(),
-                                Values = ToMultidimensionalArray(c.ColumnModifications.Where(col => !col.IsKey).Select(GetValue).ToList())
+                                KeyValues = ToMultidimensionalArray(
+                                    c.ColumnModifications.Where(col => col.IsKey).Select(GetValue).ToList()),
+                                Columns = c.ColumnModifications.Where(col => col.IsWrite).Select(col => col.ColumnName).ToArray(),
+                                Values = ToMultidimensionalArray(
+                                    c.ColumnModifications.Where(col => col.IsWrite).Select(GetValue).ToList())
                             };
                         }
                         else
@@ -1808,8 +1829,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                             {
                                 Schema = c.Schema,
                                 Table = c.TableName,
-                                KeyColumns = c.ColumnModifications.Select(col => col.ColumnName).ToArray(),
-                                KeyValues = ToMultidimensionalArray(c.ColumnModifications.Select(GetValue).ToArray())
+                                KeyColumns = c.ColumnModifications.Where(col => col.IsKey).Select(col => col.ColumnName).ToArray(),
+                                KeyValues = ToMultidimensionalArray(
+                                    c.ColumnModifications.Where(col => col.IsKey).Select(GetValue).ToArray())
                             };
                         }
                     }

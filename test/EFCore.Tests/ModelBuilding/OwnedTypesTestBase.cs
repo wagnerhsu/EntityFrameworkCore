@@ -178,7 +178,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Can_configure_one_to_one_relationship_from_an_owned_type(CreateModelBuilder());
             }
 
-            public virtual void Can_configure_one_to_one_relationship_from_an_owned_type(TestModelBuilder modelBuilder)
+            protected virtual void Can_configure_one_to_one_relationship_from_an_owned_type(TestModelBuilder modelBuilder)
             {
                 var model = modelBuilder.Model;
 
@@ -214,18 +214,22 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var entityBuilder = modelBuilder.Entity<CustomerDetails>().OwnsOne(o => o.Customer)
                     .OwnsMany(c => c.Orders);
 
-                modelBuilder.Validate();
-
                 var ownership = model.FindEntityType(typeof(CustomerDetails)).FindNavigation(nameof(CustomerDetails.Customer)).ForeignKey;
                 var owned = ownership.DeclaringEntityType;
+                var chainedOwnership = owned.FindNavigation(nameof(Customer.Orders)).ForeignKey;
+                var chainedOwned = chainedOwnership.DeclaringEntityType;
+                Assert.Null(chainedOwned.FindPrimaryKey());
+
+                entityBuilder.HasKey(o => o.OrderId);
+
+                modelBuilder.Validate();
+
                 Assert.True(ownership.IsOwnership);
                 Assert.True(ownership.IsUnique);
                 Assert.Equal(nameof(Customer.Details), ownership.DependentToPrincipal.Name);
                 Assert.Equal(nameof(Customer.Id), ownership.Properties.Single().Name);
                 Assert.Equal(nameof(Customer.Id), owned.FindPrimaryKey().Properties.Single().Name);
                 Assert.Empty(owned.GetIndexes());
-                var chainedOwnership = owned.FindNavigation(nameof(Customer.Orders)).ForeignKey;
-                var chainedOwned = chainedOwnership.DeclaringEntityType;
                 Assert.True(chainedOwnership.IsOwnership);
                 Assert.False(chainedOwnership.IsUnique);
                 Assert.Equal(nameof(Order.Customer), chainedOwnership.DependentToPrincipal.Name);
@@ -330,14 +334,18 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 modelBuilder.Ignore<Customer>();
                 modelBuilder.Ignore<OrderDetails>();
-                modelBuilder.Entity<OtherCustomer>().OwnsMany(c => c.Orders)
-                    .HasOne<SpecialCustomer>()
-                    .WithOne()
-                    .HasPrincipalKey<SpecialCustomer>();
+                modelBuilder.Entity<OtherCustomer>().OwnsMany(c => c.Orders, ob =>
+                    {
+                        ob.HasKey(o => o.OrderId);
+                        ob.HasOne<SpecialCustomer>()
+                            .WithOne()
+                            .HasPrincipalKey<SpecialCustomer>();
+                    });
 
                 Assert.NotNull(model.FindEntityType(typeof(Order)));
 
-                modelBuilder.Entity<SpecialCustomer>().OwnsMany(c => c.Orders);
+                modelBuilder.Entity<SpecialCustomer>().OwnsMany(c => c.Orders)
+                    .HasKey(o => o.OrderId);
 
                 modelBuilder.Validate();
 
@@ -375,11 +383,14 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var model = modelBuilder.Model;
 
                 modelBuilder.Ignore<OrderDetails>();
-                var entityBuilder = modelBuilder.Entity<Customer>().OwnsMany(c => c.Orders)
-                    .OwnsOne(o => o.Details);
-                entityBuilder.HasData(new OrderDetails
+                modelBuilder.Entity<Customer>().OwnsMany(c => c.Orders, ob =>
                 {
-                    OrderId = -1
+                    ob.HasKey(o => o.OrderId);
+                    ob.OwnsOne(o => o.Details)
+                        .HasData(new OrderDetails
+                        {
+                            OrderId = -1
+                        });
                 });
 
                 modelBuilder.Validate();
@@ -390,7 +401,6 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Equal(1, ownership.DeclaringEntityType.GetForeignKeys().Count());
                 var chainedOwnership = owned.FindNavigation(nameof(Order.Details)).ForeignKey;
                 var chainedOwned = chainedOwnership.DeclaringEntityType;
-                Assert.Same(entityBuilder.OwnedEntityType, chainedOwned);
                 Assert.True(chainedOwnership.IsOwnership);
                 Assert.True(chainedOwnership.IsUnique);
                 Assert.Equal(nameof(OrderDetails.OrderId), chainedOwned.FindPrimaryKey().Properties.Single().Name);
@@ -411,12 +421,14 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.Ignore<OrderDetails>();
                 modelBuilder.Entity<Customer>().OwnsMany(c => c.Orders, ob =>
                 {
+                    ob.HasKey(o => o.OrderId);
                     ob.HasData(new Order
                     {
                         OrderId = -2,
                         CustomerId = -1
                     });
-                    ob.OwnsMany(o => o.Products);
+                    ob.OwnsMany(o => o.Products)
+                        .HasKey(p => p.Id);
                 });
 
                 modelBuilder.Validate();
@@ -459,9 +471,13 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 var modelBuilder = CreateModelBuilder();
 
                 modelBuilder.Owned<Order>();
+                modelBuilder.Entity<Customer>()
+                    .OwnsMany(c => c.Orders)
+                    .HasKey(o => o.OrderId);
                 var specialCustomer = modelBuilder.Entity<SpecialCustomer>()
                     .OwnsMany(c => c.SpecialOrders, so =>
                     {
+                        so.HasKey(o => o.SpecialOrderId);
                         so.Ignore(o => o.Customer);
                         so.OwnsOne(o => o.BackOrder);
                     }).Metadata;
@@ -498,13 +514,20 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 modelBuilder.Owned<SpecialOrder>();
 
-                 modelBuilder.Entity<SpecialCustomer>();
+                modelBuilder.Entity<SpecialCustomer>();
                 var specialCustomer = modelBuilder.Entity<SpecialCustomer>().OwnsMany(c => c.SpecialOrders, so =>
                     {
+                        so.HasKey(o => o.SpecialOrderId);
                         so.Ignore(o => o.Customer);
                         so.OwnsOne(o => o.BackOrder);
                     }).Metadata;
+
                 modelBuilder.Owned<Order>();
+
+                modelBuilder.Entity<Customer>()
+                    .OwnsMany(c => c.Orders)
+                    .HasKey(o => o.OrderId);
+
                 modelBuilder.Ignore<SpecialOrder>();
 
                 modelBuilder.Validate();
@@ -922,7 +945,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 modelBuilder.Ignore<Book>();
                 modelBuilder.Ignore<SpecialBookLabel>();
-                modelBuilder.Entity<BookLabel>().OwnsOne(l => l.AnotherBookLabel, ab => { ab.OwnsOne(l => l.AnotherBookLabel); });
+                modelBuilder.Entity<BookLabel>().OwnsOne(l => l.AnotherBookLabel, ab => ab.OwnsOne(l => l.AnotherBookLabel));
 
                 var model = modelBuilder.Model;
 
@@ -957,6 +980,36 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.Entity<PrincipalEntity>().OwnsOne(o => o.InverseNav);
 
                 Assert.Single(modelBuilder.Model.GetEntityTypes(typeof(List<DependentEntity>)));
+            }
+
+            [Fact]
+            public virtual void Weak_types_with_FK_to_another_entity_works()
+            {
+                Weak_types_with_FK_to_another_entity_works(CreateModelBuilder());
+            }
+
+            public virtual void Weak_types_with_FK_to_another_entity_works(TestModelBuilder modelBuilder)
+            {
+                var ownerEntityTypeBuilder = modelBuilder.Entity<BillingOwner>();
+                ownerEntityTypeBuilder.OwnsOne(e => e.Bill1,
+                    o => o.HasOne<Country>().WithMany().HasPrincipalKey(c => c.Name).HasForeignKey(d => d.Country));
+
+                ownerEntityTypeBuilder.OwnsOne(e => e.Bill2,
+                    o => o.HasOne<Country>().WithMany().HasPrincipalKey(c => c.Name).HasForeignKey(d => d.Country));
+
+                modelBuilder.Validate();
+            }
+
+            [Fact]
+            public virtual void Inheritance_where_base_has_multiple_owned_types_works()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Entity<BaseOwner>();
+                modelBuilder.Entity<DerivedOwner>();
+
+                modelBuilder.Validate();
+
+                Assert.Equal(4, modelBuilder.Model.GetEntityTypes().Count());
             }
         }
     }

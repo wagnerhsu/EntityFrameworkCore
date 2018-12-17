@@ -164,7 +164,7 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 _sb.AppendLine($"// {entityTypeError.Value} Please see the warning messages.");
             }
 
-            if (model.Scaffolding().EntityTypeErrors.Any())
+            if (model.Scaffolding().EntityTypeErrors.Count > 0)
             {
                 _sb.AppendLine();
             }
@@ -203,15 +203,29 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                             .IncrementIndent();
                     }
 
-                    _sb.Append("optionsBuilder")
-                        .Append(
-                            _providerConfigurationCodeGenerator != null
-                                ? _code.Fragment(
-                                    _providerConfigurationCodeGenerator.GenerateUseProvider(connectionString))
+                    _sb.Append("optionsBuilder");
+
+                    if (_providerConfigurationCodeGenerator != null)
+                    {
+                        var useProviderCall = _providerConfigurationCodeGenerator.GenerateUseProvider(
+                            connectionString,
+                            _providerConfigurationCodeGenerator.GenerateProviderOptions());
+                        var contextOptions = _providerConfigurationCodeGenerator.GenerateContextOptions();
+                        if (contextOptions != null)
+                        {
+                            useProviderCall = useProviderCall.Chain(contextOptions);
+                        }
+
+                        _sb.Append(_code.Fragment(useProviderCall));
+                    }
+                    else
+                    {
 #pragma warning disable CS0618 // Type or member is obsolete
-                                : _legacyProviderCodeGenerator.GenerateUseProvider(connectionString, Language))
+                        _sb.Append(_legacyProviderCodeGenerator.GenerateUseProvider(connectionString, Language));
 #pragma warning restore CS0618 // Type or member is obsolete
-                        .AppendLine(";");
+                    }
+
+                    _sb.AppendLine(";");
                 }
 
                 _sb.AppendLine("}");
@@ -765,13 +779,13 @@ namespace Microsoft.EntityFrameworkCore.Scaffolding.Internal
                 canUseDataAnnotations = false;
                 lines.Add(
                     $".{nameof(ReferenceReferenceBuilder.HasPrincipalKey)}"
-                    + $"{(foreignKey.IsUnique ? $"<{((ITypeBase)foreignKey.PrincipalEntityType).DisplayName()}>" : "")}"
+                    + (foreignKey.IsUnique ? $"<{((ITypeBase)foreignKey.PrincipalEntityType).DisplayName()}>" : "")
                     + $"(p => {GenerateLambdaToKey(foreignKey.PrincipalKey.Properties, "p")})");
             }
 
             lines.Add(
                 $".{nameof(ReferenceReferenceBuilder.HasForeignKey)}"
-                + $"{(foreignKey.IsUnique ? $"<{((ITypeBase)foreignKey.DeclaringEntityType).DisplayName()}>" : "")}"
+                + (foreignKey.IsUnique ? $"<{((ITypeBase)foreignKey.DeclaringEntityType).DisplayName()}>" : "")
                 + $"(d => {GenerateLambdaToKey(foreignKey.Properties, "d")})");
 
             var defaultOnDeleteAction = foreignKey.IsRequired

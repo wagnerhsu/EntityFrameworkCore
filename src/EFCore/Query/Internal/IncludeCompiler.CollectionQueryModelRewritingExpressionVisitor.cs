@@ -29,6 +29,9 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             private readonly QueryModel _parentQueryModel;
             private readonly IncludeCompiler _includeCompiler;
 
+            private static readonly MethodInfo _emptyMethodInfo
+                = typeof(Enumerable).GetTypeInfo().GetDeclaredMethod(nameof(Enumerable.Empty));
+
             public CollectionQueryModelRewritingExpressionVisitor(
                 QueryCompilationContext queryCompilationContext,
                 QueryModel parentQueryModel,
@@ -90,7 +93,19 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
                 var whereClause = collectionQueryModel.BodyClauses
                     .OfType<WhereClause>()
-                    .Single();
+                    .SingleOrDefault();
+
+                if (whereClause == null)
+                {
+                    // Assuming this is a client query
+
+                    collectionQueryModel.MainFromClause.FromExpression =
+                        Expression.Coalesce(
+                            collectionQueryModel.MainFromClause.FromExpression,
+                            Expression.Call(null, _emptyMethodInfo.MakeGenericMethod(navigation.GetTargetType().ClrType)));
+
+                    return;
+                }
 
                 whereClause.TransformExpressions(querySourceReferenceFindingExpressionTreeVisitor.Visit);
 
@@ -503,15 +518,11 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     foreach (var ordering in orderByClause.Orderings)
                     {
                         int projectionIndex;
-                        var orderingExpression = ordering.Expression;
-                        if (ordering.Expression.RemoveConvert() is NullConditionalExpression nullConditionalExpression)
-                        {
-                            orderingExpression = nullConditionalExpression.AccessOperation;
-                        }
+                        var orderingExpression = ordering.Expression.RemoveConvert().RemoveNullConditional().RemoveConvert();
 
                         QuerySourceReferenceExpression orderingExpressionQsre = null;
                         string orderingExpressionName = null;
-                        if (orderingExpression.RemoveConvert() is MemberExpression memberExpression
+                        if (orderingExpression is MemberExpression memberExpression
                             && memberExpression.Expression.RemoveConvert() is QuerySourceReferenceExpression memberQsre
                             && memberQsre.ReferencedQuerySource == querySource)
                         {
@@ -519,7 +530,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                             orderingExpressionName = memberExpression.Member.Name;
                         }
 
-                        if (orderingExpression.RemoveConvert() is MethodCallExpression methodCallExpression
+                        if (orderingExpression is MethodCallExpression methodCallExpression
                             && methodCallExpression.IsEFProperty()
                             && methodCallExpression.Arguments[0].RemoveConvert() is QuerySourceReferenceExpression methodCallQsre
                             && methodCallQsre.ReferencedQuerySource == querySource)

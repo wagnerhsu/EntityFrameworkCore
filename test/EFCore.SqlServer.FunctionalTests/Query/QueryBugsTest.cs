@@ -750,7 +750,7 @@ LEFT JOIN [Customer] AS [o.Customer] ON ([o].[CustomerFirstName] = [o.Customer].
                     };
                     var details = new Details
                     {
-                        FullName = @"Daenerys Stormborn of the House Targaryen, the First of Her Name, the Unburnt, Queen of Meereen, 
+                        FullName = @"Daenerys Stormborn of the House Targaryen, the First of Her Name, the Unburnt, Queen of Meereen,
 Queen of the Andals and the Rhoynar and the First Men, Khaleesi of the Great Grass Sea, Breaker of Chains, and Mother of Dragons"
                     };
 
@@ -2378,7 +2378,7 @@ WHERE [c].[Id] IN (
         {
             return CreateTestStore(
                 () => new MyContext8909(_options),
-                context => { ClearLog(); });
+                context => ClearLog());
         }
 
         public class MyContext8909 : DbContext
@@ -2634,7 +2634,7 @@ WHERE [w].[Val] = 1");
                         @"CREATE FUNCTION foo.AddOne (@num int)
                                                             RETURNS int
                                                                 AS
-                                                            BEGIN  
+                                                            BEGIN
                                                                 return @num + 1 ;
                                                             END");
 
@@ -2642,7 +2642,7 @@ WHERE [w].[Val] = 1");
                         @"CREATE FUNCTION dbo.AddTwo (@num int)
                                                             RETURNS int
                                                                 AS
-                                                            BEGIN  
+                                                            BEGIN
                                                                 return @num + 2 ;
                                                             END");
 
@@ -2713,7 +2713,7 @@ WHERE [w].[Val] = 1");
                     Assert.Equal(0, valueParam.Value);
 
                     var blogs = context.Blogs.FromSql(
-                            @"[dbo].[GetPersonAndVoteCount]  @id, @Value out",
+                            "[dbo].[GetPersonAndVoteCount]  @id, @Value out",
                             new SqlParameter
                             {
                                 ParameterName = "id",
@@ -2805,7 +2805,7 @@ BEGIN
                         .ToListAsync();
 
                     Assert.Equal(2, result.Count);
-                    Assert.Equal(true, result.All(r => r.Students.Any()));
+                    Assert.Equal(true, result.All(r => r.Students.Count > 0));
                 }
             }
         }
@@ -2823,7 +2823,7 @@ BEGIN
                         .ToListAsync();
 
                     Assert.Equal(2, result.Count);
-                    Assert.True(result.All(r => r.Students.Any()));
+                    Assert.True(result.All(r => r.Students.Count > 0));
                     Assert.Null(result.Single(t => t.Name == "Ms. Frizzle").Family);
                     Assert.NotNull(result.Single(t => t.Name == "Mr. Garrison").Family);
                 }
@@ -3835,7 +3835,7 @@ GROUP BY [e].[Name], [e].[MaumarEntity11818_Name]");
                         .ToList();
 
                     AssertSql(
-                        @"");
+                        "");
                 }
             }
         }
@@ -3875,7 +3875,7 @@ GROUP BY [e].[Name], [e].[MaumarEntity11818_Name]");
                         .ToList();
 
                     AssertSql(
-                        @"");
+                        "");
                 }
             }
         }
@@ -3954,12 +3954,12 @@ FROM [Factions] AS [f]
 WHERE EXISTS (
     SELECT 1
     FROM [Leaders] AS [l]
-    WHERE ([l].[Name] LIKE N'Bran' + N'%' AND (LEFT([l].[Name], LEN(N'Bran')) = N'Bran')) AND ([l].[Name] = N'Crach an Craite'))");
+    WHERE [l].[Name] = N'Crach an Craite')");
                 }
             }
         }
 
-        [Fact]
+        [Fact(Skip = "Issue#13361")]
         public virtual void Query_type_used_inside_defining_query()
         {
             using (CreateDatabase11803())
@@ -4655,7 +4655,6 @@ FROM [Prices] AS [e]");
                                      Name = e.Name,
                                      DeviceId = j.DeviceId
                                  }).ToList();
-
                 }
             }
         }
@@ -4962,6 +4961,77 @@ WHERE [a].[MyTime] IN ('2018-10-07T00:00:00.000')");
 
         #endregion
 
+        #region Bug12732
+
+        [Fact]
+        public virtual void Nested_contains_with_enum()
+        {
+            using (CreateDatabase12732())
+            {
+                using (var context = new MyContext12732(_options))
+                {
+                    var key = Guid.Parse("5f221fb9-66f4-442a-92c9-d97ed5989cc7");
+                    var keys = new List<Guid> { Guid.Parse("0a47bcb7-a1cb-4345-8944-c58f82d6aac7"), key };
+                    var todoTypes = new List<TodoType> { TodoType.foo0 };
+
+                    var query = context.Todos
+                        .Where(x => keys.Contains(todoTypes.Contains(x.Type) ? key : key))
+                        .ToList();
+
+                    Assert.Single(query);
+
+                    AssertSql(
+                        @"@__key_2='5f221fb9-66f4-442a-92c9-d97ed5989cc7'
+
+SELECT [x].[Id], [x].[Type]
+FROM [Todos] AS [x]
+WHERE CASE
+    WHEN [x].[Type] IN (0)
+    THEN @__key_2 ELSE @__key_2
+END IN ('0a47bcb7-a1cb-4345-8944-c58f82d6aac7', '5f221fb9-66f4-442a-92c9-d97ed5989cc7')");
+                }
+            }
+        }
+
+        private SqlServerTestStore CreateDatabase12732()
+        {
+            return CreateTestStore(
+                () => new MyContext12732(_options),
+                context =>
+                {
+                    context.Add(
+                        new Todo
+                        {
+                            Type = TodoType.foo0
+                        });
+                    context.SaveChanges();
+                    ClearLog();
+                });
+        }
+
+        private class MyContext12732 : DbContext
+        {
+            public DbSet<Todo> Todos { get; set; }
+
+            public MyContext12732(DbContextOptions options)
+               : base(options)
+            {
+            }
+        }
+
+        private class Todo
+        {
+            public Guid Id { get; set; }
+            public TodoType Type { get; set; }
+        }
+
+        private enum TodoType
+        {
+            foo0 = 0
+        }
+
+        #endregion
+
         #region Bug13157
 
         [Fact]
@@ -5064,7 +5134,196 @@ ORDER BY [t].[Id]");
         public class AddressTurnovers13157
         {
             public int AmountIn { get; set; }
+        }
 
+        #endregion
+
+        #region Bug13346
+
+        [Fact]
+        public virtual void ToQuery_can_define_in_own_terms_using_FromSql()
+        {
+            using (CreateDatabase13346())
+            {
+                using (var context = new MyContext13346(_options))
+                {
+                    var query = context.Query<OrderSummary13346>().ToList();
+
+                    Assert.Equal(4, query.Count);
+
+                    AssertSql(
+                        "SELECT o.Amount From Orders AS o");
+                }
+            }
+        }
+
+        private SqlServerTestStore CreateDatabase13346()
+        {
+            return CreateTestStore(
+                () => new MyContext13346(_options),
+                context =>
+                {
+                    context.AddRange(
+                        new Order13346 { Amount = 1},
+                        new Order13346 { Amount = 2},
+                        new Order13346 { Amount = 3},
+                        new Order13346 { Amount = 4}
+                        );
+
+                    context.SaveChanges();
+                    ClearLog();
+                });
+        }
+
+        public class MyContext13346 : DbContext
+        {
+            public virtual DbSet<Order13346> Orders { get; set; }
+
+            public MyContext13346(DbContextOptions options)
+               : base(options)
+            {
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Query<OrderSummary13346>().ToQuery(
+                    () => Query<OrderSummary13346>()
+                            .FromSql("SELECT o.Amount From Orders AS o"));
+            }
+        }
+
+        public class Order13346
+        {
+            public int Id { get; set; }
+            public int Amount { get; set; }
+        }
+
+        public class OrderSummary13346
+        {
+            public int Amount { get; set; }
+        }
+
+        #endregion
+
+        #region Bug13079
+
+        [Fact]
+        public virtual void Multilevel_owned_entities_determine_correct_nullability()
+        {
+            using (CreateDatabase13079())
+            {
+                using (var context = new MyContext13079(_options))
+                {
+                    context.Add(new BaseEntity13079());
+                    context.SaveChanges();
+
+                    AssertSql(
+                        @"@p0='BaseEntity13079' (Nullable = false) (Size = 4000)
+
+SET NOCOUNT ON;
+INSERT INTO [BaseEntities] ([Discriminator])
+VALUES (@p0);
+SELECT [Id]
+FROM [BaseEntities]
+WHERE @@ROWCOUNT = 1 AND [Id] = scope_identity();");
+                }
+            }
+        }
+
+        private SqlServerTestStore CreateDatabase13079()
+        {
+            return CreateTestStore(
+                () => new MyContext13079(_options),
+                context => ClearLog());
+        }
+
+        public class MyContext13079 : DbContext
+        {
+            public virtual DbSet<BaseEntity13079> BaseEntities { get; set; }
+
+            public MyContext13079(DbContextOptions options)
+               : base(options)
+            {
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<DerivedEntity13079>().OwnsOne(e => e.Data, b => b.OwnsOne(e => e.SubData));
+            }
+        }
+
+        public class BaseEntity13079
+        {
+            public int Id { get; set; }
+        }
+
+        public class DerivedEntity13079 : BaseEntity13079
+        {
+            public int Property { get; set; }
+            public OwnedData13079 Data { get; set; }
+        }
+
+        public class OwnedData13079
+        {
+            public int Property { get; set; }
+            public OwnedSubData13079 SubData { get; set; }
+        }
+
+        public class OwnedSubData13079
+        {
+            public int Property { get; set; }
+        }
+
+        #endregion
+
+        #region Bug13587
+
+        [Fact]
+        public virtual void Type_casting_inside_sum()
+        {
+            using (CreateDatabase13587())
+            {
+                using (var context = new MyContext13587(_options))
+                {
+                    var result = context.InventoryPools.Sum(p => (decimal)p.Quantity);
+
+                    AssertSql(
+                        @"SELECT SUM(CAST([p].[Quantity] AS decimal(18,2)))
+FROM [InventoryPools] AS [p]");
+                }
+            }
+        }
+
+        private SqlServerTestStore CreateDatabase13587()
+        {
+            return CreateTestStore(
+                () => new MyContext13587(_options),
+                context => {
+                    context.InventoryPools.Add(new InventoryPool13587
+                    {
+                        Quantity = 2,
+                    });
+
+                    context.SaveChanges();
+
+                    ClearLog();
+                });
+        }
+
+        public class MyContext13587 : DbContext
+        {
+            public virtual DbSet<InventoryPool13587> InventoryPools { get; set; }
+
+            public MyContext13587(DbContextOptions options)
+               : base(options)
+            {
+            }
+        }
+
+        public class InventoryPool13587
+        {
+            public int Id { get; set; }
+            public double Quantity { get; set; }
         }
 
         #endregion

@@ -19,7 +19,7 @@ namespace Microsoft.EntityFrameworkCore
     {
         protected TableSplittingTestBase(ITestOutputHelper testOutputHelper)
         {
-            TestSqlLoggerFactory = (TestSqlLoggerFactory)TestStoreFactory.CreateListLoggerFactory(l => true);
+            TestSqlLoggerFactory = (TestSqlLoggerFactory)TestStoreFactory.CreateListLoggerFactory(_ => true);
             //TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
         }
 
@@ -115,8 +115,8 @@ namespace Microsoft.EntityFrameworkCore
                 modelBuilder =>
                 {
                     OnModelCreating(modelBuilder);
-                    modelBuilder.Entity<FuelTank>(eb => { eb.Ignore(e => e.Engine); });
-                    modelBuilder.Entity<CombustionEngine>(eb => { eb.Ignore(e => e.FuelTank); });
+                    modelBuilder.Entity<FuelTank>(eb => eb.Ignore(e => e.Engine));
+                    modelBuilder.Entity<CombustionEngine>(eb => eb.Ignore(e => e.FuelTank));
                 });
         }
 

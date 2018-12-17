@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Diagnostics;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -40,13 +41,19 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Storage.Internal
 
             if (clrType == typeof(byte[]))
             {
-                return new InMemoryTypeMapping(clrType, deepComparer: new ArrayDeepComparer<byte>());
+                return new InMemoryTypeMapping(clrType, structuralComparer: new ArrayStructuralComparer<byte>());
             }
 
-            if (clrType.Name == "GeoAPI.Geometries.IGeometry"
+            if (clrType.FullName == "GeoAPI.Geometries.IGeometry"
                 || clrType.GetInterface("GeoAPI.Geometries.IGeometry") != null)
             {
-                return new InMemoryTypeMapping(clrType, new GeometryValueComparer(clrType));
+                var comparer = (ValueComparer)Activator.CreateInstance(typeof(GeometryValueComparer<>).MakeGenericType(clrType));
+
+                return new InMemoryTypeMapping(
+                    clrType,
+                    comparer,
+                    comparer,
+                    comparer);
             }
 
             return base.FindMapping(mappingInfo);
